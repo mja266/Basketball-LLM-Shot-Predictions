@@ -28,7 +28,6 @@ PLAYER_TO_TEAM = {
 SHOT_TYPES = ["3PT", "MID", "PAINT", "FT"]
 
 def _base_skill(player, shot_type):
-    # crude priors: higher prob in player's comfort zones
     base = 0.45
     if player == "Stephen Curry":
         if shot_type == "3PT": base += 0.25
@@ -46,16 +45,13 @@ def _base_skill(player, shot_type):
     return np.clip(base, 0.05, 0.95)
 
 def _time_pressure_boost(seconds_remaining):
-    # under 10s: a small negative pressure effect
     if seconds_remaining <= 10: return -0.05
     if seconds_remaining <= 60: return -0.02
     return 0.0
 
 def _distance_modifier(shot_type, x, y):
-    # crude distance approximation: half-court is (50, 25); hoop near (5, 25)
     hoop_x, hoop_y = 5.0, 25.0
     d = np.sqrt((x - hoop_x)**2 + (y - hoop_y)**2)
-    # treat 3PT as better far, paint better near, mid in between
     if shot_type == "PAINT":
         return np.interp(d, [0, 10, 30], [0.15, 0.05, -0.10])
     if shot_type == "MID":
@@ -63,7 +59,7 @@ def _distance_modifier(shot_type, x, y):
     if shot_type == "3PT":
         return np.interp(d, [15, 25, 45], [-0.10, 0.10, -0.10])
     if shot_type == "FT":
-        return 0.10  # assume freebies
+        return 0.10
     return 0.0
 
 def make_synthetic(n_rows=100):
@@ -72,18 +68,13 @@ def make_synthetic(n_rows=100):
         player = np.random.choice(PLAYERS)
         team   = PLAYER_TO_TEAM[player]
         period = int(np.random.choice([1, 2, 3, 4]))
-        # time remaining in quarter (seconds)
         seconds_remaining = int(np.random.randint(0, 720))
         mm = seconds_remaining // 60
         ss = seconds_remaining % 60
         pctimestring = f"{mm}:{ss:02d}"
         shot_type = np.random.choice(SHOT_TYPES, p=[0.35, 0.25, 0.35, 0.05])
-
-        # court coords ~ full court (94x50) — we use 0..50 for x to keep around half-court
-        # focus offense near hoop_x=5..35 range to be plausible
         x = float(np.random.uniform(0, 50))
         y = float(np.random.uniform(0, 50))
-
         base = _base_skill(player, shot_type)
         prob = base + _time_pressure_boost(seconds_remaining) + _distance_modifier(shot_type, x, y)
         prob = np.clip(prob + np.random.normal(0, 0.03), 0.02, 0.98)
@@ -100,13 +91,9 @@ def make_synthetic(n_rows=100):
             "made": int(made),
         })
     df = pd.DataFrame(rows)
-
-    # ensure we don't accidentally create all-one-class
     if df["made"].nunique() < 2:
-        # flip 10% to guarantee both classes
         flip_idx = df.sample(frac=0.1, random_state=RANDOM_SEED).index
         df.loc[flip_idx, "made"] = 1 - df.loc[flip_idx, "made"]
-
     return df
 
 def generate_or_load(csv_path):
@@ -125,8 +112,6 @@ def to_seconds(pctimestring: str) -> int:
 def main():
     df = generate_or_load(DATA_CSV)
     print(f"✅ Rows: {len(df)}  |  Columns: {list(df.columns)}")
-
-    # --- Encode features ---
     enc_player = LabelEncoder().fit(df["player_name"])
     enc_team   = LabelEncoder().fit(df["team_id"])
     enc_shot   = LabelEncoder().fit(df["shot_type"])
@@ -142,7 +127,6 @@ def main():
     })
     y = df["made"].astype(int)
 
-    # simple split (no stratify to avoid tiny-class errors with toy data)
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.25, random_state=RANDOM_SEED
     )
