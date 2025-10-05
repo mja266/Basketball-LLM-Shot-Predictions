@@ -1,153 +1,168 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Basketball Play Predictor</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🏀 Basketball Play Predictor</title>
   <style>
-    :root { color-scheme: dark; }
-    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial; background:#0b0b0b; color:#eee; }
-    .wrap { max-width:560px; margin:40px auto; padding:24px; background:#141414; border-radius:16px; box-shadow:0 6px 20px rgba(0,0,0,.4); }
-    h1 { font-size:32px; margin:0 0 18px; color:#ffd200; display:flex; align-items:center; gap:10px;}
-    h1 span { font-size:36px; }
-    label { display:block; margin:14px 0 6px; color:#bbb; font-size:14px;}
-    input, select, button { width:100%; padding:12px 14px; border-radius:10px; border:1px solid #333; background:#1b1b1b; color:#eee; font-size:15px;}
-    button { background:#ffd200; color:#111; font-weight:700; cursor:pointer; margin-top:14px; }
-    .result { margin-top:18px; padding:14px; border-radius:10px; background:#101010; border:1px dashed #333; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;}
-    .ok { color:#9ae6b4; }
-    .err { color:#ff8080; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #181818;
+      color: #f0f0f0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    .container {
+      background-color: #1e1e1e;
+      border-radius: 16px;
+      padding: 24px;
+      width: 380px;
+      box-shadow: 0 0 12px rgba(0,0,0,0.4);
+    }
+    h2 {
+      text-align: center;
+      color: #f8b400;
+      margin-bottom: 20px;
+    }
+    select, input {
+      width: 100%;
+      margin: 8px 0;
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+      background-color: #2b2b2b;
+      color: white;
+      font-size: 15px;
+    }
+    button {
+      background-color: #f8b400;
+      color: black;
+      font-weight: bold;
+      border: none;
+      border-radius: 8px;
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+      margin-top: 8px;
+      cursor: pointer;
+    }
+    .result {
+      text-align: center;
+      margin-top: 15px;
+      font-weight: bold;
+    }
+    .result.made { color: #00ff66; }
+    .result.missed { color: #ff4444; }
+    .error { color: #ff4444; font-size: 14px; text-align: center; margin-top: 8px; }
+
+    /* Probability bar styling */
+    .prob-container {
+      width: 100%;
+      height: 18px;
+      background-color: #333;
+      border-radius: 10px;
+      overflow: hidden;
+      margin-top: 10px;
+      display: none;
+    }
+    .prob-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #ff4444, #00ff66);
+      transition: width 0.7s ease-in-out;
+    }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <h1><span>🏀</span> Basketball Play Predictor</h1>
+  <div class="container">
+    <h2>🏀 Basketball Play Predictor</h2>
 
     <label>Team</label>
-    <select id="team">
-      <option value="">Select Team</option>
-      <option>Atlanta Hawks</option>
-      <option>Boston Celtics</option>
-      <option>Brooklyn Nets</option>
-      <option>Charlotte Hornets</option>
-      <option>Chicago Bulls</option>
-      <option>Cleveland Cavaliers</option>
-      <option>Dallas Mavericks</option>
-      <option>Denver Nuggets</option>
-      <option>Detroit Pistons</option>
-      <option>Golden State Warriors</option>
-      <option>Houston Rockets</option>
-      <option>Indiana Pacers</option>
-      <option>LA Clippers</option>
-      <option>Los Angeles Lakers</option>
-      <option>Memphis Grizzlies</option>
-      <option>Miami Heat</option>
-      <option>Milwaukee Bucks</option>
-      <option>Minnesota Timberwolves</option>
-      <option>New Orleans Pelicans</option>
-      <option>New York Knicks</option>
-      <option>Oklahoma City Thunder</option>
-      <option>Orlando Magic</option>
-      <option>Philadelphia 76ers</option>
-      <option>Phoenix Suns</option>
-      <option>Portland Trail Blazers</option>
-      <option>Sacramento Kings</option>
-      <option>San Antonio Spurs</option>
-      <option>Toronto Raptors</option>
-      <option>Utah Jazz</option>
-      <option>Washington Wizards</option>
-    </select>
+    <select id="team"></select>
 
     <label>Player</label>
-    <select id="player">
-      <option value="">Select a team first</option>
-    </select>
+    <select id="player"></select>
 
     <label>Period (1–4)</label>
-    <input id="period" type="number" min="1" max="4" value="4" />
+    <input type="number" id="period" min="1" max="4" value="4">
 
     <label>Time remaining (mm:ss)</label>
-    <input id="time" type="text" value="2:00" />
+    <input type="text" id="time" value="2:00">
 
     <label>Shot type</label>
-    <select id="shot">
-      <option>3PT</option>
-      <option>MID</option>
-      <option>PAINT</option>
-      <option>FT</option>
+    <select id="shotType">
+      <option value="2PT Field Goal">2PT Field Goal</option>
+      <option value="3PT Field Goal">3PT Field Goal</option>
     </select>
 
-    <label>X coordinate (0..50)</label>
-    <input id="x" type="number" step="0.1" value="28.0" />
+    <label>X coordinate (0–50)</label>
+    <input type="number" id="x" value="25">
 
-    <label>Y coordinate (0..50)</label>
-    <input id="y" type="number" step="0.1" value="22.0" />
+    <label>Y coordinate (0–50)</label>
+    <input type="number" id="y" value="25">
 
-    <button id="go">Predict</button>
-    <div id="out" class="result">Result will appear here…</div>
+    <button id="predict">Predict</button>
+    <div id="result" class="result"></div>
+    <div id="error" class="error"></div>
+
+    <!-- Probability visualization -->
+    <div class="prob-container" id="probContainer">
+      <div class="prob-bar" id="probBar"></div>
+    </div>
   </div>
 
   <script>
-    const teamPlayers = {
-      "Golden State Warriors": ["Stephen Curry", "Klay Thompson", "Draymond Green", "Andrew Wiggins"],
-      "Los Angeles Lakers": ["LeBron James", "Anthony Davis", "D'Angelo Russell", "Austin Reaves"],
-      "Boston Celtics": ["Jayson Tatum", "Jaylen Brown", "Kristaps Porzingis", "Jrue Holiday"],
-      "Milwaukee Bucks": ["Giannis Antetokounmpo", "Damian Lillard", "Brook Lopez", "Khris Middleton"],
-      "Dallas Mavericks": ["Luka Doncic", "Kyrie Irving", "Derrick Jones Jr.", "Dereck Lively II"],
-      "Phoenix Suns": ["Kevin Durant", "Devin Booker", "Bradley Beal", "Jusuf Nurkic"],
-      "Denver Nuggets": ["Nikola Jokic", "Jamal Murray", "Michael Porter Jr.", "Aaron Gordon"],
-      "Miami Heat": ["Jimmy Butler", "Bam Adebayo", "Tyler Herro", "Jaime Jaquez Jr."],
-      "Philadelphia 76ers": ["Joel Embiid", "Tyrese Maxey", "Kelly Oubre Jr.", "Tobias Harris"],
-      "New York Knicks": ["Jalen Brunson", "Julius Randle", "OG Anunoby", "Donte DiVincenzo"],
-      "Cleveland Cavaliers": ["Donovan Mitchell", "Darius Garland", "Evan Mobley", "Jarrett Allen"],
-      "Sacramento Kings": ["De’Aaron Fox", "Domantas Sabonis", "Kevin Huerter", "Keegan Murray"],
-      "Minnesota Timberwolves": ["Anthony Edwards", "Karl-Anthony Towns", "Rudy Gobert", "Jaden McDaniels"],
-      "Atlanta Hawks": ["Trae Young", "Dejounte Murray", "Bogdan Bogdanovic", "Clint Capela"],
-      "Brooklyn Nets": ["Mikal Bridges", "Cameron Johnson", "Ben Simmons", "Nic Claxton"],
-      "LA Clippers": ["Kawhi Leonard", "Paul George", "James Harden", "Russell Westbrook"],
-      "Orlando Magic": ["Paolo Banchero", "Franz Wagner", "Jalen Suggs", "Wendell Carter Jr."],
-      "Indiana Pacers": ["Tyrese Haliburton", "Myles Turner", "Buddy Hield", "Aaron Nesmith"],
-      "Houston Rockets": ["Jalen Green", "Fred VanVleet", "Alperen Sengun", "Dillon Brooks"],
-      "Oklahoma City Thunder": ["Shai Gilgeous-Alexander", "Chet Holmgren", "Jalen Williams", "Josh Giddey"],
-      "Chicago Bulls": ["Zach LaVine", "DeMar DeRozan", "Nikola Vucevic", "Coby White"],
-      "Toronto Raptors": ["Scottie Barnes", "RJ Barrett", "Jakob Poeltl", "Immanuel Quickley"],
-      "San Antonio Spurs": ["Victor Wembanyama", "Devin Vassell", "Jeremy Sochan", "Tre Jones"],
-      "Portland Trail Blazers": ["Anfernee Simons", "Scoot Henderson", "Jerami Grant", "Deandre Ayton"],
-      "New Orleans Pelicans": ["Zion Williamson", "Brandon Ingram", "CJ McCollum", "Herbert Jones"],
-      "Charlotte Hornets": ["LaMelo Ball", "Brandon Miller", "Miles Bridges", "Mark Williams"],
-      "Utah Jazz": ["Lauri Markkanen", "Jordan Clarkson", "Walker Kessler", "Collin Sexton"],
-      "Detroit Pistons": ["Cade Cunningham", "Jaden Ivey", "Jalen Duren", "Ausar Thompson"],
-      "Washington Wizards": ["Kyle Kuzma", "Jordan Poole", "Tyus Jones", "Deni Avdija"]
+    const teams = {
+      "Boston Celtics": ["Jayson Tatum", "Jaylen Brown", "Jrue Holiday"],
+      "Golden State Warriors": ["Stephen Curry", "Klay Thompson", "Draymond Green"],
+      "Los Angeles Lakers": ["LeBron James", "Anthony Davis", "Austin Reaves"],
+      "Milwaukee Bucks": ["Giannis Antetokounmpo", "Damian Lillard", "Brook Lopez"],
+      "Dallas Mavericks": ["Luka Doncic", "Kyrie Irving", "Dereck Lively II"]
     };
 
-    const $ = id => document.getElementById(id);
-    $("team").onchange = () => {
-      const team = $("team").value;
-      const playerSelect = $("player");
+    const teamSelect = document.getElementById("team");
+    const playerSelect = document.getElementById("player");
+
+    Object.keys(teams).forEach(team => {
+      const opt = document.createElement("option");
+      opt.value = team;
+      opt.textContent = team;
+      teamSelect.appendChild(opt);
+    });
+
+    teamSelect.addEventListener("change", () => {
       playerSelect.innerHTML = "";
-      if (teamPlayers[team]) {
-        teamPlayers[team].forEach(p => {
-          const opt = document.createElement("option");
-          opt.textContent = p;
-          playerSelect.appendChild(opt);
-        });
-      } else {
+      teams[teamSelect.value].forEach(player => {
         const opt = document.createElement("option");
-        opt.textContent = "Select a valid team";
+        opt.value = player;
+        opt.textContent = player;
         playerSelect.appendChild(opt);
-      }
-    };
+      });
+    });
+    teamSelect.dispatchEvent(new Event("change"));
 
-    $("go").onclick = async () => {
+    document.getElementById("predict").addEventListener("click", async () => {
       const payload = {
-        player_name: $("player").value,
-        team_id: $("team").value,
-        period: parseInt($("period").value || "4"),
-        pctimestring: $("time").value || "2:00",
-        shot_type: $("shot").value,
-        x: parseFloat($("x").value || "25"),
-        y: parseFloat($("y").value || "25"),
+        team_id: teamSelect.value,
+        player_name: playerSelect.value,
+        period: document.getElementById("period").value,
+        pctimestring: document.getElementById("time").value,
+        shot_type: document.getElementById("shotType").value,
+        x: document.getElementById("x").value,
+        y: document.getElementById("y").value
       };
-      $("out").textContent = "Contacting model…";
+
+      const resultDiv = document.getElementById("result");
+      const errorDiv = document.getElementById("error");
+      const probContainer = document.getElementById("probContainer");
+      const probBar = document.getElementById("probBar");
+
+      resultDiv.textContent = "";
+      errorDiv.textContent = "";
+      probContainer.style.display = "none";
+
       try {
         const res = await fetch("http://127.0.0.1:5000/predict", {
           method: "POST",
@@ -155,17 +170,28 @@
           body: JSON.stringify(payload)
         });
         const data = await res.json();
-        if (!data.ok) throw new Error(data.error || "Unknown error");
 
-        const color = data.prediction_label === "MADE" ? "#00ff88" : "#ff4040";
-        $("out").innerHTML =
-          `<div style="color:${color}; font-weight:bold;">${data.prediction_label}</div>
-           <div style="margin-top:8px; font-size:13px; opacity:.8">
-           Probability: ${(data.made_probability*100).toFixed(1)}%</div>`;
-      } catch (e) {
-        $("out").innerHTML = `<div class="err">❌ ${e.message}</div>`;
+        if (!data.ok) {
+          errorDiv.textContent = data.error;
+          return;
+        }
+
+        const pct = Math.round(data.made_probability * 100);
+        probBar.style.width = pct + "%";
+        probContainer.style.display = "block";
+
+        if (data.prediction_label === "MADE") {
+          resultDiv.className = "result made";
+          resultDiv.textContent = `✅ Shot MADE (${pct}% chance)`;
+        } else {
+          resultDiv.className = "result missed";
+          resultDiv.textContent = `❌ Shot MISSED (${pct}% chance)`;
+        }
+
+      } catch (err) {
+        errorDiv.textContent = "Request failed: " + err.message;
       }
-    };
+    });
   </script>
 </body>
 </html>
