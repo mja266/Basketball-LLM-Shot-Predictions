@@ -14,8 +14,7 @@
     input, select, button { width:100%; padding:12px 14px; border-radius:10px; border:1px solid #333; background:#1b1b1b; color:#eee; font-size:15px;}
     button { background:#ffd200; color:#111; font-weight:700; cursor:pointer; margin-top:14px; }
     .result { margin-top:18px; padding:14px; border-radius:10px; background:#101010; border:1px dashed #333; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;}
-    .ok { color:#9ae6b4; } /* green */
-    .miss { color:#ff4d4d; } /* red */
+    .ok { color:#9ae6b4; }
     .err { color:#ff8080; }
   </style>
 </head>
@@ -23,25 +22,47 @@
   <div class="wrap">
     <h1><span>🏀</span> Basketball Play Predictor</h1>
 
-    <label>Player</label>
-    <select id="player">
-      <option>Stephen Curry</option>
-      <option>LeBron James</option>
-      <option>Jayson Tatum</option>
-      <option>Giannis Antetokounmpo</option>
-      <option>Luka Doncic</option>
-    </select>
-
     <label>Team</label>
     <select id="team">
-      <option>GSW</option>
-      <option>LAL</option>
-      <option>BOS</option>
-      <option>MIL</option>
-      <option>DAL</option>
+      <option value="">Select Team</option>
+      <option>Atlanta Hawks</option>
+      <option>Boston Celtics</option>
+      <option>Brooklyn Nets</option>
+      <option>Charlotte Hornets</option>
+      <option>Chicago Bulls</option>
+      <option>Cleveland Cavaliers</option>
+      <option>Dallas Mavericks</option>
+      <option>Denver Nuggets</option>
+      <option>Detroit Pistons</option>
+      <option>Golden State Warriors</option>
+      <option>Houston Rockets</option>
+      <option>Indiana Pacers</option>
+      <option>LA Clippers</option>
+      <option>Los Angeles Lakers</option>
+      <option>Memphis Grizzlies</option>
+      <option>Miami Heat</option>
+      <option>Milwaukee Bucks</option>
+      <option>Minnesota Timberwolves</option>
+      <option>New Orleans Pelicans</option>
+      <option>New York Knicks</option>
+      <option>Oklahoma City Thunder</option>
+      <option>Orlando Magic</option>
+      <option>Philadelphia 76ers</option>
+      <option>Phoenix Suns</option>
+      <option>Portland Trail Blazers</option>
+      <option>Sacramento Kings</option>
+      <option>San Antonio Spurs</option>
+      <option>Toronto Raptors</option>
+      <option>Utah Jazz</option>
+      <option>Washington Wizards</option>
     </select>
 
-    <label>Period (1-4)</label>
+    <label>Player</label>
+    <select id="player">
+      <option value="">Select a team first</option>
+    </select>
+
+    <label>Period (1–4)</label>
     <input id="period" type="number" min="1" max="4" value="4" />
 
     <label>Time remaining (mm:ss)</label>
@@ -66,7 +87,56 @@
   </div>
 
   <script>
+    const teamPlayers = {
+      "Golden State Warriors": ["Stephen Curry", "Klay Thompson", "Draymond Green", "Andrew Wiggins"],
+      "Los Angeles Lakers": ["LeBron James", "Anthony Davis", "D'Angelo Russell", "Austin Reaves"],
+      "Boston Celtics": ["Jayson Tatum", "Jaylen Brown", "Kristaps Porzingis", "Jrue Holiday"],
+      "Milwaukee Bucks": ["Giannis Antetokounmpo", "Damian Lillard", "Brook Lopez", "Khris Middleton"],
+      "Dallas Mavericks": ["Luka Doncic", "Kyrie Irving", "Derrick Jones Jr.", "Dereck Lively II"],
+      "Phoenix Suns": ["Kevin Durant", "Devin Booker", "Bradley Beal", "Jusuf Nurkic"],
+      "Denver Nuggets": ["Nikola Jokic", "Jamal Murray", "Michael Porter Jr.", "Aaron Gordon"],
+      "Miami Heat": ["Jimmy Butler", "Bam Adebayo", "Tyler Herro", "Jaime Jaquez Jr."],
+      "Philadelphia 76ers": ["Joel Embiid", "Tyrese Maxey", "Kelly Oubre Jr.", "Tobias Harris"],
+      "New York Knicks": ["Jalen Brunson", "Julius Randle", "OG Anunoby", "Donte DiVincenzo"],
+      "Cleveland Cavaliers": ["Donovan Mitchell", "Darius Garland", "Evan Mobley", "Jarrett Allen"],
+      "Sacramento Kings": ["De’Aaron Fox", "Domantas Sabonis", "Kevin Huerter", "Keegan Murray"],
+      "Minnesota Timberwolves": ["Anthony Edwards", "Karl-Anthony Towns", "Rudy Gobert", "Jaden McDaniels"],
+      "Atlanta Hawks": ["Trae Young", "Dejounte Murray", "Bogdan Bogdanovic", "Clint Capela"],
+      "Brooklyn Nets": ["Mikal Bridges", "Cameron Johnson", "Ben Simmons", "Nic Claxton"],
+      "LA Clippers": ["Kawhi Leonard", "Paul George", "James Harden", "Russell Westbrook"],
+      "Orlando Magic": ["Paolo Banchero", "Franz Wagner", "Jalen Suggs", "Wendell Carter Jr."],
+      "Indiana Pacers": ["Tyrese Haliburton", "Myles Turner", "Buddy Hield", "Aaron Nesmith"],
+      "Houston Rockets": ["Jalen Green", "Fred VanVleet", "Alperen Sengun", "Dillon Brooks"],
+      "Oklahoma City Thunder": ["Shai Gilgeous-Alexander", "Chet Holmgren", "Jalen Williams", "Josh Giddey"],
+      "Chicago Bulls": ["Zach LaVine", "DeMar DeRozan", "Nikola Vucevic", "Coby White"],
+      "Toronto Raptors": ["Scottie Barnes", "RJ Barrett", "Jakob Poeltl", "Immanuel Quickley"],
+      "San Antonio Spurs": ["Victor Wembanyama", "Devin Vassell", "Jeremy Sochan", "Tre Jones"],
+      "Portland Trail Blazers": ["Anfernee Simons", "Scoot Henderson", "Jerami Grant", "Deandre Ayton"],
+      "New Orleans Pelicans": ["Zion Williamson", "Brandon Ingram", "CJ McCollum", "Herbert Jones"],
+      "Charlotte Hornets": ["LaMelo Ball", "Brandon Miller", "Miles Bridges", "Mark Williams"],
+      "Utah Jazz": ["Lauri Markkanen", "Jordan Clarkson", "Walker Kessler", "Collin Sexton"],
+      "Detroit Pistons": ["Cade Cunningham", "Jaden Ivey", "Jalen Duren", "Ausar Thompson"],
+      "Washington Wizards": ["Kyle Kuzma", "Jordan Poole", "Tyus Jones", "Deni Avdija"]
+    };
+
     const $ = id => document.getElementById(id);
+    $("team").onchange = () => {
+      const team = $("team").value;
+      const playerSelect = $("player");
+      playerSelect.innerHTML = "";
+      if (teamPlayers[team]) {
+        teamPlayers[team].forEach(p => {
+          const opt = document.createElement("option");
+          opt.textContent = p;
+          playerSelect.appendChild(opt);
+        });
+      } else {
+        const opt = document.createElement("option");
+        opt.textContent = "Select a valid team";
+        playerSelect.appendChild(opt);
+      }
+    };
+
     $("go").onclick = async () => {
       const payload = {
         player_name: $("player").value,
@@ -87,10 +157,11 @@
         const data = await res.json();
         if (!data.ok) throw new Error(data.error || "Unknown error");
 
-        const cssClass = data.prediction_label === "MADE" ? "ok" : "miss";
+        const color = data.prediction_label === "MADE" ? "#00ff88" : "#ff4040";
         $("out").innerHTML =
-          `<div class="${cssClass}"><b>${data.prediction_label}</b> &nbsp; (p = ${(data.made_probability*100).toFixed(1)}%)</div>
-           <div style="margin-top:8px; font-size:13px; opacity:.8">debug: ${JSON.stringify(payload)}</div>`;
+          `<div style="color:${color}; font-weight:bold;">${data.prediction_label}</div>
+           <div style="margin-top:8px; font-size:13px; opacity:.8">
+           Probability: ${(data.made_probability*100).toFixed(1)}%</div>`;
       } catch (e) {
         $("out").innerHTML = `<div class="err">❌ ${e.message}</div>`;
       }
