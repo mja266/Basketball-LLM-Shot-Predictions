@@ -1,83 +1,24 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="utf-8" />
   <title>🏀 Basketball Play Predictor</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      background-color: #181818;
-      color: #f0f0f0;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-    }
-    .container {
-      background-color: #1e1e1e;
-      border-radius: 16px;
-      padding: 24px;
-      width: 380px;
-      box-shadow: 0 0 12px rgba(0,0,0,0.4);
-    }
-    h2 {
-      text-align: center;
-      color: #f8b400;
-      margin-bottom: 20px;
-    }
-    select, input {
-      width: 100%;
-      margin: 8px 0;
-      padding: 10px;
-      border-radius: 8px;
-      border: none;
-      background-color: #2b2b2b;
-      color: white;
-      font-size: 15px;
-    }
-    button {
-      background-color: #f8b400;
-      color: black;
-      font-weight: bold;
-      border: none;
-      border-radius: 8px;
-      width: 100%;
-      padding: 12px;
-      font-size: 16px;
-      margin-top: 8px;
-      cursor: pointer;
-    }
-    .result {
-      text-align: center;
-      margin-top: 15px;
-      font-weight: bold;
-    }
-    .result.made { color: #00ff66; }
-    .result.missed { color: #ff4444; }
-    .error { color: #ff4444; font-size: 14px; text-align: center; margin-top: 8px; }
-
-    /* Probability bar styling */
-    .prob-container {
-      width: 100%;
-      height: 18px;
-      background-color: #333;
-      border-radius: 10px;
-      overflow: hidden;
-      margin-top: 10px;
-      display: none;
-    }
-    .prob-bar {
-      height: 100%;
-      width: 0%;
-      background: linear-gradient(90deg, #ff4444, #00ff66);
-      transition: width 0.7s ease-in-out;
-    }
+    :root { color-scheme: dark; }
+    body { background:#0b0b0b; color:#eee; font-family: system-ui, sans-serif; margin:0; padding:0; }
+    .wrap { max-width:500px; margin:40px auto; background:#141414; border-radius:14px; padding:20px; box-shadow:0 6px 20px rgba(0,0,0,0.5); }
+    h1 { font-size:28px; color:#ffd200; display:flex; align-items:center; gap:8px; }
+    select, input, button { width:100%; margin-top:10px; padding:10px; border-radius:8px; border:1px solid #333; background:#1b1b1b; color:#eee; }
+    button { background:#ffd200; color:#000; font-weight:bold; cursor:pointer; }
+    .result { margin-top:15px; padding:12px; border-radius:10px; font-weight:bold; text-align:center; }
+    .ok { color:#9ae6b4; }
+    .err { color:#ff8080; }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h2>🏀 Basketball Play Predictor</h2>
+  <div class="wrap">
+    <h1>🏀 Basketball Play Predictor</h1>
 
     <label>Team</label>
     <select id="team"></select>
@@ -86,112 +27,71 @@
     <select id="player"></select>
 
     <label>Period (1–4)</label>
-    <input type="number" id="period" min="1" max="4" value="4">
+    <input id="period" type="number" min="1" max="4" value="4"/>
 
     <label>Time remaining (mm:ss)</label>
-    <input type="text" id="time" value="2:00">
+    <input id="time" type="text" value="2:00"/>
 
     <label>Shot type</label>
-    <select id="shotType">
-      <option value="2PT Field Goal">2PT Field Goal</option>
-      <option value="3PT Field Goal">3PT Field Goal</option>
+    <select id="shot">
+      <option>2PT Field Goal</option>
+      <option>3PT Field Goal</option>
     </select>
 
     <label>X coordinate (0–50)</label>
-    <input type="number" id="x" value="25">
+    <input id="x" type="number" step="0.1" value="25"/>
 
     <label>Y coordinate (0–50)</label>
-    <input type="number" id="y" value="25">
+    <input id="y" type="number" step="0.1" value="25"/>
 
-    <button id="predict">Predict</button>
-    <div id="result" class="result"></div>
-    <div id="error" class="error"></div>
-
-    <!-- Probability visualization -->
-    <div class="prob-container" id="probContainer">
-      <div class="prob-bar" id="probBar"></div>
-    </div>
+    <button id="go">Predict</button>
+    <div id="out" class="result">Result will appear here...</div>
   </div>
 
   <script>
-    const teams = {
-      "Boston Celtics": ["Jayson Tatum", "Jaylen Brown", "Jrue Holiday"],
-      "Golden State Warriors": ["Stephen Curry", "Klay Thompson", "Draymond Green"],
-      "Los Angeles Lakers": ["LeBron James", "Anthony Davis", "Austin Reaves"],
-      "Milwaukee Bucks": ["Giannis Antetokounmpo", "Damian Lillard", "Brook Lopez"],
-      "Dallas Mavericks": ["Luka Doncic", "Kyrie Irving", "Dereck Lively II"]
+    const $ = id => document.getElementById(id);
+
+    async function loadTeams() {
+      const res = await fetch("http://127.0.0.1:5000/teams");
+      const data = await res.json();
+      $("team").innerHTML = data.teams.map(t => `<option>${t}</option>`).join("");
+      await loadPlayers(data.teams[0]);
+    }
+
+    async function loadPlayers(team) {
+      const res = await fetch(`http://127.0.0.1:5000/players?team=${encodeURIComponent(team)}`);
+      const data = await res.json();
+      $("player").innerHTML = data.players.map(p => `<option>${p}</option>`).join("");
+    }
+
+    $("team").addEventListener("change", e => loadPlayers(e.target.value));
+
+    $("go").onclick = async () => {
+      const payload = {
+        team_id: $("team").value,
+        player_name: $("player").value,
+        period: $("period").value,
+        pctimestring: $("time").value,
+        shot_type: $("shot").value,
+        x: $("x").value,
+        y: $("y").value
+      };
+      $("out").innerHTML = "⏳ Predicting...";
+      const res = await fetch("http://127.0.0.1:5000/predict", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        $("out").innerHTML = `<div class='err'>❌ ${data.error}</div>`;
+      } else {
+        const color = data.prediction_label === "MADE" ? "green" : "red";
+        $("out").innerHTML = `<div style='color:${color}'>🏀 Shot ${data.prediction_label} (${(data.made_probability*100).toFixed(1)}% chance)</div>`;
+      }
     };
 
-    const teamSelect = document.getElementById("team");
-    const playerSelect = document.getElementById("player");
-
-    Object.keys(teams).forEach(team => {
-      const opt = document.createElement("option");
-      opt.value = team;
-      opt.textContent = team;
-      teamSelect.appendChild(opt);
-    });
-
-    teamSelect.addEventListener("change", () => {
-      playerSelect.innerHTML = "";
-      teams[teamSelect.value].forEach(player => {
-        const opt = document.createElement("option");
-        opt.value = player;
-        opt.textContent = player;
-        playerSelect.appendChild(opt);
-      });
-    });
-    teamSelect.dispatchEvent(new Event("change"));
-
-    document.getElementById("predict").addEventListener("click", async () => {
-      const payload = {
-        team_id: teamSelect.value,
-        player_name: playerSelect.value,
-        period: document.getElementById("period").value,
-        pctimestring: document.getElementById("time").value,
-        shot_type: document.getElementById("shotType").value,
-        x: document.getElementById("x").value,
-        y: document.getElementById("y").value
-      };
-
-      const resultDiv = document.getElementById("result");
-      const errorDiv = document.getElementById("error");
-      const probContainer = document.getElementById("probContainer");
-      const probBar = document.getElementById("probBar");
-
-      resultDiv.textContent = "";
-      errorDiv.textContent = "";
-      probContainer.style.display = "none";
-
-      try {
-        const res = await fetch("http://127.0.0.1:5000/predict", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
-        });
-        const data = await res.json();
-
-        if (!data.ok) {
-          errorDiv.textContent = data.error;
-          return;
-        }
-
-        const pct = Math.round(data.made_probability * 100);
-        probBar.style.width = pct + "%";
-        probContainer.style.display = "block";
-
-        if (data.prediction_label === "MADE") {
-          resultDiv.className = "result made";
-          resultDiv.textContent = `✅ Shot MADE (${pct}% chance)`;
-        } else {
-          resultDiv.className = "result missed";
-          resultDiv.textContent = `❌ Shot MISSED (${pct}% chance)`;
-        }
-
-      } catch (err) {
-        errorDiv.textContent = "Request failed: " + err.message;
-      }
-    });
+    loadTeams();
   </script>
 </body>
 </html>
