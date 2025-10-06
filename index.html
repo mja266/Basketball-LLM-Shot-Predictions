@@ -3,192 +3,168 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Basketball Play Predictor</title>
+  <title>🏀 Basketball Play Predictor</title>
   <style>
     body {
       background-color: #111;
-      color: white;
+      color: #ffcc00;
       font-family: Arial, sans-serif;
       display: flex;
-      flex-direction: column;
+      justify-content: center;
       align-items: center;
-      margin: 0;
-      padding: 20px;
+      min-height: 100vh;
     }
-
-    h1 {
-      color: #ffcc00;
-      display: flex;
-      align-items: center;
-      gap: 10px;
+    .container {
+      background: #1e1e1e;
+      padding: 20px 40px;
+      border-radius: 12px;
+      box-shadow: 0 0 15px rgba(255, 204, 0, 0.3);
+      width: 400px;
     }
-
-    select, input {
+    select, input, button {
       width: 100%;
-      padding: 10px;
-      border-radius: 5px;
+      margin: 8px 0;
+      padding: 8px;
+      border-radius: 6px;
       border: none;
-      margin: 5px 0;
-      background-color: #222;
-      color: white;
+      font-size: 14px;
     }
-
     button {
-      width: 100%;
-      padding: 10px;
-      margin-top: 10px;
       background-color: #ffcc00;
-      color: black;
+      color: #000;
       font-weight: bold;
-      border: none;
-      border-radius: 5px;
       cursor: pointer;
     }
-
-    button:hover {
-      background-color: #ffdd33;
-    }
-
-    .container {
-      width: 400px;
-      background: #181818;
-      border-radius: 10px;
-      padding: 20px;
-      box-shadow: 0 0 10px #000;
-    }
-
     .result {
-      margin-top: 15px;
-      text-align: center;
-      font-weight: bold;
-    }
-
-    .made {
-      color: #4caf50;
-    }
-
-    .missed {
-      color: #f44336;
-    }
-
-    .progress-bar {
-      height: 10px;
-      border-radius: 5px;
-      margin-top: 10px;
-    }
-
-    .progress-fill {
-      height: 10px;
-      border-radius: 5px;
+      margin-top: 20px;
+      padding: 10px;
+      border-radius: 6px;
     }
   </style>
 </head>
-
 <body>
   <div class="container">
-    <h1>🏀 Basketball Play Predictor</h1>
+    <h2>🏀 Basketball Play Predictor</h2>
 
     <label>Team</label>
-    <select id="team"></select>
+    <select id="teamSelect"></select>
 
     <label>Player</label>
-    <select id="player"></select>
+    <select id="playerSelect"></select>
 
     <label>Period (1–4)</label>
     <input type="number" id="period" min="1" max="4" value="4" />
 
     <label>Time remaining (mm:ss)</label>
-    <input type="text" id="time" value="2:00" />
+    <input type="text" id="timeRemaining" value="2:00" />
 
     <label>Shot type</label>
     <select id="shotType">
       <option>2PT Field Goal</option>
       <option>3PT Field Goal</option>
+      <option>MID</option>
     </select>
 
     <label>X coordinate (0–50)</label>
-    <input type="number" id="x" min="0" max="50" value="25" />
+    <input type="number" id="xCoord" value="25" />
 
     <label>Y coordinate (0–50)</label>
-    <input type="number" id="y" min="0" max="50" value="25" />
+    <input type="number" id="yCoord" value="25" />
 
-    <button onclick="predict()">Predict</button>
+    <button onclick="predictShot()">Predict</button>
 
     <div id="result" class="result"></div>
-    <div id="progress" class="progress-bar">
-      <div id="fill" class="progress-fill"></div>
-    </div>
   </div>
 
   <script>
-    const apiBase = "http://127.0.0.1:5000";
+    const teamPlayers = {
+      "Atlanta Hawks": ["Trae Young", "Dejounte Murray"],
+      "Boston Celtics": ["Jayson Tatum", "Jaylen Brown", "Jrue Holiday"],
+      "Brooklyn Nets": ["Mikal Bridges", "Cam Thomas"],
+      "Charlotte Hornets": ["LaMelo Ball", "Miles Bridges"],
+      "Chicago Bulls": ["Zach LaVine", "DeMar DeRozan"],
+      "Cleveland Cavaliers": ["Donovan Mitchell", "Darius Garland"],
+      "Dallas Mavericks": ["Luka Doncic", "Kyrie Irving"],
+      "Denver Nuggets": ["Nikola Jokic", "Jamal Murray"],
+      "Detroit Pistons": ["Cade Cunningham", "Jaden Ivey"],
+      "Golden State Warriors": ["Stephen Curry", "Klay Thompson"],
+      "Houston Rockets": ["Jalen Green", "Fred VanVleet"],
+      "Indiana Pacers": ["Tyrese Haliburton", "Myles Turner"],
+      "LA Clippers": ["Kawhi Leonard", "Paul George", "James Harden"],
+      "Los Angeles Lakers": ["LeBron James", "Anthony Davis"],
+      "Memphis Grizzlies": ["Ja Morant", "Desmond Bane"],
+      "Miami Heat": ["Jimmy Butler", "Bam Adebayo"],
+      "Milwaukee Bucks": ["Giannis Antetokounmpo", "Damian Lillard"],
+      "Minnesota Timberwolves": ["Anthony Edwards", "Karl-Anthony Towns"],
+      "New Orleans Pelicans": ["Zion Williamson", "Brandon Ingram"],
+      "New York Knicks": ["Jalen Brunson", "Julius Randle"],
+      "Oklahoma City Thunder": ["Shai Gilgeous-Alexander", "Chet Holmgren"],
+      "Orlando Magic": ["Paolo Banchero", "Franz Wagner"],
+      "Philadelphia 76ers": ["Joel Embiid", "Tyrese Maxey"],
+      "Phoenix Suns": ["Kevin Durant", "Devin Booker", "Bradley Beal"],
+      "Portland Trail Blazers": ["Anfernee Simons", "Deandre Ayton"],
+      "Sacramento Kings": ["De'Aaron Fox", "Domantas Sabonis"],
+      "San Antonio Spurs": ["Victor Wembanyama", "Devin Vassell"],
+      "Toronto Raptors": ["Scottie Barnes", "RJ Barrett"],
+      "Utah Jazz": ["Lauri Markkanen", "Jordan Clarkson"],
+      "Washington Wizards": ["Kyle Kuzma", "Jordan Poole"]
+    };
 
-    async function loadTeams() {
-      try {
-        const res = await fetch(`${apiBase}/teams`);
-        const teams = await res.json();
-        const teamSelect = document.getElementById("team");
-        teamSelect.innerHTML = teams.map(team => `<option value="${team}">${team}</option>`).join("");
-        loadPlayers(teams[0]);
-      } catch (err) {
-        console.error("Error loading teams:", err);
-      }
-    }
+    const teamSelect = document.getElementById("teamSelect");
+    const playerSelect = document.getElementById("playerSelect");
 
-    async function loadPlayers(team) {
-      try {
-        const res = await fetch(`${apiBase}/players/${encodeURIComponent(team)}`);
-        const players = await res.json();
-        const playerSelect = document.getElementById("player");
-        playerSelect.innerHTML = players.map(p => `<option value="${p}">${p}</option>`).join("");
-      } catch (err) {
-        console.error("Error loading players:", err);
-      }
-    }
-
-    document.getElementById("team").addEventListener("change", (e) => {
-      loadPlayers(e.target.value);
+    // Populate teams
+    Object.keys(teamPlayers).forEach(team => {
+      const opt = document.createElement("option");
+      opt.value = team;
+      opt.textContent = team;
+      teamSelect.appendChild(opt);
     });
 
-    async function predict() {
+    // Update players dynamically
+    teamSelect.addEventListener("change", () => {
+      const selectedTeam = teamSelect.value;
+      const players = teamPlayers[selectedTeam] || [];
+      playerSelect.innerHTML = "";
+      players.forEach(p => {
+        const opt = document.createElement("option");
+        opt.value = p;
+        opt.textContent = p;
+        playerSelect.appendChild(opt);
+      });
+    });
+
+    async function predictShot() {
       const payload = {
-        team_id: document.getElementById("team").value,
-        player_name: document.getElementById("player").value,
+        team_id: teamSelect.value,
+        player_name: playerSelect.value,
         period: document.getElementById("period").value,
-        pctimestring: document.getElementById("time").value,
+        pctimestring: document.getElementById("timeRemaining").value,
         shot_type: document.getElementById("shotType").value,
-        x: document.getElementById("x").value,
-        y: document.getElementById("y").value
+        x: document.getElementById("xCoord").value,
+        y: document.getElementById("yCoord").value
       };
 
+      const res = await fetch("http://127.0.0.1:5000/predict", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
       const resultDiv = document.getElementById("result");
-      const fill = document.getElementById("fill");
-      resultDiv.innerHTML = "⏳ Predicting...";
 
-      try {
-        const res = await fetch(`${apiBase}/predict`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
-        });
-        const data = await res.json();
-
-        if (!data.ok) throw new Error(data.error);
-
-        const prob = (data.made_probability * 100).toFixed(1);
-        const label = data.prediction_label;
-        const color = label === "MADE" ? "#4caf50" : "#f44336";
-
-        resultDiv.innerHTML = `🏀 Shot <span class="${label === "MADE" ? "made" : "missed"}">${label}</span> (${prob}% chance)`;
-        fill.style.width = `${prob}%`;
-        fill.style.backgroundColor = color;
-      } catch (err) {
-        console.error("Prediction failed:", err);
-        resultDiv.innerHTML = `<span class="missed">❌ ${err.message}</span>`;
+      if (!data.ok) {
+        resultDiv.textContent = "❌ " + data.error;
+        resultDiv.style.color = "red";
+      } else {
+        resultDiv.textContent = `🏀 ${data.player} — Shot ${data.prediction_label} (${(
+          data.made_probability * 100
+        ).toFixed(1)}% chance)`;
+        resultDiv.style.color =
+          data.prediction_label === "MADE" ? "limegreen" : "red";
       }
     }
-
-    window.onload = loadTeams;
   </script>
 </body>
 </html>
