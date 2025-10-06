@@ -1,54 +1,119 @@
 🏀 Basketball Shot Predictor
 
-This project is a basketball shot prediction system built with Python (Flask), machine learning, and a simple web UI.
-It predicts whether a player will make or miss a shot based on game context (quarter, time remaining, shot type, and court coordinates).
-
-Currently, the predictor supports five star players:
-
-Stephen Curry (GSW)
-
-LeBron James (LAL)
-
-Luka Dončić (DAL)
-
-Jayson Tatum (BOS)
-
-Giannis Antetokounmpo (MIL)
+A full-stack NBA shot prediction system powered by Python (Flask), machine learning, and a sleek web UI.
+It predicts whether a player’s shot will be made or missed based on shot type, game context, and shot coordinates.
 
 🚀 Features
 
-Machine learning model trained on historical shot data.
+🧠 Machine Learning Model trained on real NBA shot data (2024–25 season).
 
-Predicts HIT (1) or MISS (0) with an associated probability.
+🏀 All 30 NBA Teams selectable, each with dynamically loaded players from the dataset.
 
-Interactive web interface with dropdowns for players, teams, shot type, and game context.
+🔢 Prediction Engine: Returns “MADE” or “MISSED” with real-time probability.
 
-Visual progress bar showing prediction confidence.
+🎯 Player-Based Season Averages: Players’ 2024–25 shooting percentages drive accuracy.
 
-Backend API built with Flask; frontend built with HTML, CSS, JavaScript.
+🌐 Interactive Frontend: HTML/CSS/JS interface for team, player, and shot context selection.
+
+🔧 Flask API Backend: Handles shot prediction, team/player data, and model inference.
 
 📂 Project Structure
-
-build_episodes.py → Prepares and trains the model.
-
-serve_api.py → Runs the Flask backend and exposes the /predict endpoint.
-
-index.html → Frontend interface for making predictions.
-
+File	Description
+build_episodes.py	Prepares and trains the LightGBM model on the season_2024_25_shots.csv dataset.
+serve_api.py	Flask backend serving team/player data and prediction endpoints.
+index.html	Frontend web interface for selecting teams, players, and making predictions.
+season_2024_25_shots.csv	NBA shot dataset containing all 2024–25 player shot data.
 🖥️ How It Works
 
-Select a player, shot type, and game context (period, time left, coordinates).
+Launch the Flask API using serve_api.py.
 
-The app sends the input to the Flask API.
+The frontend (index.html) automatically loads all NBA teams via /teams.
 
-The trained ML model returns a probability of a make or miss.
+When you select a team, its players populate dynamically from the backend.
 
-The result is shown in the UI with a ✅ HIT or ❌ MISS indicator and a colored probability bar.
+Input shot details (period, time remaining, shot type, and coordinates).
 
-🔧 Tech Stack
+Press Predict — the backend evaluates the shot and returns:
 
-Python (Flask, scikit-learn, pandas, numpy)
+“MADE” (green) or “MISSED” (red)
+
+Along with the player’s probability of success.
+
+🧩 Tech Stack
+
+Python: Flask, LightGBM, Pandas, NumPy
 
 Frontend: HTML, CSS, JavaScript
 
-Data: NBA shot data (restricted to the 5 players above)
+Data Source: 2024–25 NBA shot data (season_2024_25_shots.csv)
+
+⚙️ Setup Instructions
+1️⃣ Clone the Repository
+git clone https://github.com/<your-username>/Basketball-Shot-Predictor.git
+cd Basketball-Shot-Predictor
+
+2️⃣ Install Dependencies
+pip install flask flask-cors joblib lightgbm pandas numpy scikit-learn
+
+3️⃣ Train the Model
+python build_episodes.py
+
+
+This will generate:
+
+shots_model.pkl — Trained ML model
+
+shots_encoders.pkl — Encoders for teams, players, and shot types
+
+player_shot_averages.pkl — Computed player season averages
+
+4️⃣ Start the Flask API
+python serve_api.py
+
+
+Expected output:
+
+📂 Loading models and encoders...
+✅ Loaded 30 teams with player mappings
+🚀 Serving Basketball Play Predictor on http://127.0.0.1:5000
+
+5️⃣ Open the Frontend
+
+Open index.html directly in your browser (e.g. via Live Server in VS Code).
+
+The web app should automatically load all NBA teams and their rosters.
+
+🧠 Prediction Logic
+
+If the selected player has recorded season stats, predictions use their 2024–25 FG%.
+
+Otherwise, the trained LightGBM model provides a context-based probability.
+
+Results appear instantly with color-coded feedback:
+
+🟢 MADE — Successful shot
+
+🔴 MISSED — Missed shot
+
+📊 Example Usage
+
+Select Team: “Golden State Warriors”
+
+Select Player: “Stephen Curry”
+
+Select Shot Type: “3PT”
+
+Coordinates: x = 25, y = 25
+
+Click Predict →
+Output:
+
+Stephen Curry MADE (42.8% chance)
+
+🏁 Notes
+
+Ensure the Flask API runs before loading the web interface.
+
+Predictions rely on both season averages and the trained model.
+
+The project is designed for expansion — new players or seasons can be added by updating the dataset and rerunning build_episodes.py.
