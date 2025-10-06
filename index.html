@@ -1,23 +1,91 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>🏀 Basketball Play Predictor</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Basketball Play Predictor</title>
   <style>
-    :root { color-scheme: dark; }
-    body { background:#0b0b0b; color:#eee; font-family: system-ui, sans-serif; margin:0; padding:0; }
-    .wrap { max-width:500px; margin:40px auto; background:#141414; border-radius:14px; padding:20px; box-shadow:0 6px 20px rgba(0,0,0,0.5); }
-    h1 { font-size:28px; color:#ffd200; display:flex; align-items:center; gap:8px; }
-    select, input, button { width:100%; margin-top:10px; padding:10px; border-radius:8px; border:1px solid #333; background:#1b1b1b; color:#eee; }
-    button { background:#ffd200; color:#000; font-weight:bold; cursor:pointer; }
-    .result { margin-top:15px; padding:12px; border-radius:10px; font-weight:bold; text-align:center; }
-    .ok { color:#9ae6b4; }
-    .err { color:#ff8080; }
+    body {
+      background-color: #111;
+      color: white;
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 0;
+      padding: 20px;
+    }
+
+    h1 {
+      color: #ffcc00;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    select, input {
+      width: 100%;
+      padding: 10px;
+      border-radius: 5px;
+      border: none;
+      margin: 5px 0;
+      background-color: #222;
+      color: white;
+    }
+
+    button {
+      width: 100%;
+      padding: 10px;
+      margin-top: 10px;
+      background-color: #ffcc00;
+      color: black;
+      font-weight: bold;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #ffdd33;
+    }
+
+    .container {
+      width: 400px;
+      background: #181818;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 0 10px #000;
+    }
+
+    .result {
+      margin-top: 15px;
+      text-align: center;
+      font-weight: bold;
+    }
+
+    .made {
+      color: #4caf50;
+    }
+
+    .missed {
+      color: #f44336;
+    }
+
+    .progress-bar {
+      height: 10px;
+      border-radius: 5px;
+      margin-top: 10px;
+    }
+
+    .progress-fill {
+      height: 10px;
+      border-radius: 5px;
+    }
   </style>
 </head>
+
 <body>
-  <div class="wrap">
+  <div class="container">
     <h1>🏀 Basketball Play Predictor</h1>
 
     <label>Team</label>
@@ -27,71 +95,100 @@
     <select id="player"></select>
 
     <label>Period (1–4)</label>
-    <input id="period" type="number" min="1" max="4" value="4"/>
+    <input type="number" id="period" min="1" max="4" value="4" />
 
     <label>Time remaining (mm:ss)</label>
-    <input id="time" type="text" value="2:00"/>
+    <input type="text" id="time" value="2:00" />
 
     <label>Shot type</label>
-    <select id="shot">
+    <select id="shotType">
       <option>2PT Field Goal</option>
       <option>3PT Field Goal</option>
     </select>
 
     <label>X coordinate (0–50)</label>
-    <input id="x" type="number" step="0.1" value="25"/>
+    <input type="number" id="x" min="0" max="50" value="25" />
 
     <label>Y coordinate (0–50)</label>
-    <input id="y" type="number" step="0.1" value="25"/>
+    <input type="number" id="y" min="0" max="50" value="25" />
 
-    <button id="go">Predict</button>
-    <div id="out" class="result">Result will appear here...</div>
+    <button onclick="predict()">Predict</button>
+
+    <div id="result" class="result"></div>
+    <div id="progress" class="progress-bar">
+      <div id="fill" class="progress-fill"></div>
+    </div>
   </div>
 
   <script>
-    const $ = id => document.getElementById(id);
+    const apiBase = "http://127.0.0.1:5000";
 
     async function loadTeams() {
-      const res = await fetch("http://127.0.0.1:5000/teams");
-      const data = await res.json();
-      $("team").innerHTML = data.teams.map(t => `<option>${t}</option>`).join("");
-      await loadPlayers(data.teams[0]);
+      try {
+        const res = await fetch(`${apiBase}/teams`);
+        const teams = await res.json();
+        const teamSelect = document.getElementById("team");
+        teamSelect.innerHTML = teams.map(team => `<option value="${team}">${team}</option>`).join("");
+        loadPlayers(teams[0]);
+      } catch (err) {
+        console.error("Error loading teams:", err);
+      }
     }
 
     async function loadPlayers(team) {
-      const res = await fetch(`http://127.0.0.1:5000/players?team=${encodeURIComponent(team)}`);
-      const data = await res.json();
-      $("player").innerHTML = data.players.map(p => `<option>${p}</option>`).join("");
+      try {
+        const res = await fetch(`${apiBase}/players/${encodeURIComponent(team)}`);
+        const players = await res.json();
+        const playerSelect = document.getElementById("player");
+        playerSelect.innerHTML = players.map(p => `<option value="${p}">${p}</option>`).join("");
+      } catch (err) {
+        console.error("Error loading players:", err);
+      }
     }
 
-    $("team").addEventListener("change", e => loadPlayers(e.target.value));
+    document.getElementById("team").addEventListener("change", (e) => {
+      loadPlayers(e.target.value);
+    });
 
-    $("go").onclick = async () => {
+    async function predict() {
       const payload = {
-        team_id: $("team").value,
-        player_name: $("player").value,
-        period: $("period").value,
-        pctimestring: $("time").value,
-        shot_type: $("shot").value,
-        x: $("x").value,
-        y: $("y").value
+        team_id: document.getElementById("team").value,
+        player_name: document.getElementById("player").value,
+        period: document.getElementById("period").value,
+        pctimestring: document.getElementById("time").value,
+        shot_type: document.getElementById("shotType").value,
+        x: document.getElementById("x").value,
+        y: document.getElementById("y").value
       };
-      $("out").innerHTML = "⏳ Predicting...";
-      const res = await fetch("http://127.0.0.1:5000/predict", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-      if (!data.ok) {
-        $("out").innerHTML = `<div class='err'>❌ ${data.error}</div>`;
-      } else {
-        const color = data.prediction_label === "MADE" ? "green" : "red";
-        $("out").innerHTML = `<div style='color:${color}'>🏀 Shot ${data.prediction_label} (${(data.made_probability*100).toFixed(1)}% chance)</div>`;
-      }
-    };
 
-    loadTeams();
+      const resultDiv = document.getElementById("result");
+      const fill = document.getElementById("fill");
+      resultDiv.innerHTML = "⏳ Predicting...";
+
+      try {
+        const res = await fetch(`${apiBase}/predict`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+
+        if (!data.ok) throw new Error(data.error);
+
+        const prob = (data.made_probability * 100).toFixed(1);
+        const label = data.prediction_label;
+        const color = label === "MADE" ? "#4caf50" : "#f44336";
+
+        resultDiv.innerHTML = `🏀 Shot <span class="${label === "MADE" ? "made" : "missed"}">${label}</span> (${prob}% chance)`;
+        fill.style.width = `${prob}%`;
+        fill.style.backgroundColor = color;
+      } catch (err) {
+        console.error("Prediction failed:", err);
+        resultDiv.innerHTML = `<span class="missed">❌ ${err.message}</span>`;
+      }
+    }
+
+    window.onload = loadTeams;
   </script>
 </body>
 </html>
