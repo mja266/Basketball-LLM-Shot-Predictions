@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🏀 Basketball Play Predictor</title>
+  <style>
+    body {
+      background-color: #111;
+      color: #f7c600;
+      font-family: 'Segoe UI', sans-serif;
+      text-align: center;
+      margin: 2rem;
+    }
+    select, input {
+      width: 80%;
+      padding: 10px;
+      margin: 8px;
+      border-radius: 8px;
+      border: none;
+      background: #222;
+      color: #fff;
+      font-size: 1rem;
+    }
+    button {
+      background-color: #f7c600;
+      color: #000;
+      font-weight: bold;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 20px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #ffdb4d;
+    }
+    .result {
+      margin-top: 20px;
+      font-size: 1.2rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>🏀 Basketball Play Predictor</h1>
+  <div>
+    <label>Team</label><br />
+    <select id="team"></select><br />
+    <label>Player</label><br />
+    <select id="player"></select><br />
+    <label>Period (1–4)</label><br />
+    <input id="period" type="number" min="1" max="4" value="4"/><br />
+    <label>Time remaining (mm:ss)</label><br />
+    <input id="time" type="text" value="2:00"/><br />
+    <label>Shot type</label><br />
+    <select id="shot">
+      <option>2PT Field Goal</option>
+      <option>3PT</option>
+      <option>MID</option>
+    </select><br />
+    <label>X coordinate (0–50)</label><br />
+    <input id="x" type="number" value="25"/><br />
+    <label>Y coordinate (0–50)</label><br />
+    <input id="y" type="number" value="25"/><br />
+    <button onclick="predict()">Predict</button>
+    <div id="result" class="result"></div>
+  </div>
+
+  <script>
+    let teams = {};
+
+    async function loadTeams() {
+      const res = await fetch("http://127.0.0.1:5000/teams");
+      const data = await res.json();
+      if (!data.ok) {
+        document.getElementById("result").innerText = "⚠️ Failed to load teams.";
+        return;
+      }
+
+      teams = data.teams;
+      const teamSel = document.getElementById("team");
+      const playerSel = document.getElementById("player");
+
+      Object.keys(teams).sort().forEach(t => {
+        const opt = document.createElement("option");
+        opt.value = t;
+        opt.textContent = t;
+        teamSel.appendChild(opt);
+      });
+
+      teamSel.addEventListener("change", () => {
+        const selected = teamSel.value;
+        playerSel.innerHTML = "";
+        teams[selected].forEach(p => {
+          const opt = document.createElement("option");
+          opt.value = p;
+          opt.textContent = p;
+          playerSel.appendChild(opt);
+        });
+      });
+
+      // Trigger default load for first team
+      teamSel.dispatchEvent(new Event("change"));
+    }
+
+    async function predict() {
+      const payload = {
+        team_id: document.getElementById("team").value,
+        player_name: document.getElementById("player").value,
+        period: document.getElementById("period").value,
+        pctimestring: document.getElementById("time").value,
+        shot_type: document.getElementById("shot").value,
+        x: document.getElementById("x").value,
+        y: document.getElementById("y").value
+      };
+
+      const res = await fetch("http://127.0.0.1:5000/predict", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+      const resultDiv = document.getElementById("result");
+      if (!data.ok) {
+        resultDiv.innerHTML = `<span style="color:red;">❌ ${data.error}</span>`;
+      } else {
+        const color = data.prediction_label === "MADE" ? "lime" : "red";
+        const pct = (data.made_probability * 100).toFixed(1);
+        resultDiv.innerHTML = `<span style="color:${color};">${data.player} ${data.prediction_label} (${pct}% chance)</span>`;
+      }
+    }
+
+    loadTeams();
+  </script>
+</body>
+</html>
