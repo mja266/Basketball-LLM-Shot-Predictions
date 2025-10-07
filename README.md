@@ -83,6 +83,22 @@ Open index.html directly in your browser (e.g. via Live Server in VS Code).
 
 The web app should automatically load all NBA teams and their rosters.
 
+📂 Data Access
+
+The 2024–25 NBA shot dataset used for training and predictions is hosted externally due to GitHub’s file size limits.
+You can download it directly from Dropbox using the link below:
+
+🔗 Download the 2024–25 NBA Shot Dataset (season_2024_25_shots.csv)
+
+Once downloaded, place the file in the root directory of this project (alongside build_episodes.py, serve_api.py, and index.html) before running the model training step:
+
+python build_episodes.py
+
+
+If you prefer, you can also modify build_episodes.py to automatically download the dataset by adding:
+
+DROPBOX_CSV_URL = "https://www.dropbox.com/scl/fi/2p2ym6akwvqbu0d8nb648/season_2024_25_shots.csv?rlkey=80ua85sxeijwgnu8gjmxs1ida&st=luv4qhix&dl=1"
+
 🧠 Prediction Logic
 
 If the selected player has recorded season stats, predictions use their 2024–25 FG%.
