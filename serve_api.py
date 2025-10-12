@@ -14,12 +14,12 @@ DATA_CSV = "season_2024_25_shots.csv"
 app = Flask(__name__)
 CORS(app)
 
-print("📂 Loading models and encoders...")
+print("ðŸ“‚ Loading models and encoders...")
 model = joblib.load(MODEL_PKL)
 enc = joblib.load(ENCODERS_PKL)
 player_avgs = joblib.load(PLAYER_AVG_PKL)
 
-# Load dynamic team→players mapping from the CSV
+# Load dynamic teamâ†’players mapping from the CSV
 if not Path(DATA_CSV).exists():
     raise FileNotFoundError(f"{DATA_CSV} not found!")
 
@@ -37,7 +37,7 @@ team_to_players = (
       .to_dict()
 )
 all_teams = sorted(team_to_players.keys())
-print(f"✅ Loaded {len(all_teams)} teams with player mappings")
+print(f"âœ… Loaded {len(all_teams)} teams with player mappings")
 
 SUPPORTED_PLAYERS = list(player_avgs.keys())
 
@@ -114,9 +114,5 @@ def predict():
         return jsonify({"ok": False, "error": f"Prediction error: {str(e)}"}), 500
 
 if __name__ == "__main__":
-    import os
-    port = int(os.environ.get("PORT", 8080))
-    print(f"🚀 Serving Basketball Play Predictor on 0.0.0.0:{port}")
-    app.run(host="0.0.0.0", port=port, debug=False)
-
-
+    print("ðŸš€ Serving Basketball Play Predictor on http://127.0.0.1:5000")
+    app.run(host="127.0.0.1", port=5000, debug=True)
