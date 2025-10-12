@@ -1,8 +1,11 @@
 # ---------- Dockerfile ----------
 FROM python:3.10-slim
 
+# System dependencies (needed for numpy, pandas, lightgbm)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential libgomp1 && rm -rf /var/lib/apt/lists/*
+    build-essential \
+    libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
