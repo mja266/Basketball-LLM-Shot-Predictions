@@ -47,7 +47,7 @@
     <select id="team"></select><br />
     <label>Player</label><br />
     <select id="player"></select><br />
-    <label>Period (1-4)</label><br />
+    <label>Period (1–4)</label><br />
     <input id="period" type="number" min="1" max="4" value="4"/><br />
     <label>Time remaining (mm:ss)</label><br />
     <input id="time" type="text" value="2:00"/><br />
@@ -57,9 +57,9 @@
       <option>3PT</option>
       <option>MID</option>
     </select><br />
-    <label>X coordinate (0-50)</label><br />
+    <label>X coordinate (0–50)</label><br />
     <input id="x" type="number" value="25"/><br />
-    <label>Y coordinate (0-50)</label><br />
+    <label>Y coordinate (0–50)</label><br />
     <input id="y" type="number" value="25"/><br />
     <button onclick="predict()">Predict</button>
     <div id="result" class="result"></div>
@@ -67,12 +67,13 @@
 
   <script>
     let teams = {};
+    const backendURL = "https://nba-shot-predictor.onrender.com"; // Replace with your Render URL
 
     async function loadTeams() {
-      const res = await fetch("http://127.0.0.1:5000/teams");
+      const res = await fetch(`${backendURL}/teams`);
       const data = await res.json();
       if (!data.ok) {
-        document.getElementById("result").innerText = "âš ï¸ Failed to load teams.";
+        document.getElementById("result").innerText = "⚠️ Failed to load teams.";
         return;
       }
 
@@ -113,7 +114,7 @@
         y: document.getElementById("y").value
       };
 
-      const res = await fetch("http://127.0.0.1:5000/predict", {
+      const res = await fetch(`${backendURL}/predict`, {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify(payload)
@@ -122,7 +123,7 @@
       const data = await res.json();
       const resultDiv = document.getElementById("result");
       if (!data.ok) {
-        resultDiv.innerHTML = `<span style="color:red;">âŒ ${data.error}</span>`;
+        resultDiv.innerHTML = `<span style="color:red;">❌ ${data.error}</span>`;
       } else {
         const color = data.prediction_label === "MADE" ? "lime" : "red";
         const pct = (data.made_probability * 100).toFixed(1);
