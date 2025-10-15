@@ -1,109 +1,122 @@
 🏀 Basketball Shot Predictor
 
-A full-stack NBA shot prediction system powered by Python (Flask), machine learning, and a sleek web UI.
-It predicts whether a player’s shot will be made or missed based on shot type, game context, and shot coordinates.
+A full-stack NBA shot prediction web app powered by machine learning and an interactive browser-based interface.
+Built with a Flask backend (hosted on Render) and a sleek HTML/CSS/JS frontend (hosted via GitHub Pages), it predicts whether an NBA player’s shot will be MADE or MISSED based on shot type, game context, and shot coordinates.
+
+🌐 Live Demo:
+👉 https://mja266.github.io/NBA-Shot-Predictor/
 
 🚀 Features
 
-🧠 Machine Learning Model trained on real NBA shot data (2024–25 season).
+🧠 Machine Learning Model trained on real 2024–25 NBA shot data.
 
-🏀 All 30 NBA Teams selectable, each with dynamically loaded players from the dataset.
+🏀 All 30 NBA Teams selectable — players dynamically load from the live backend.
 
-🔢 Prediction Engine: Returns “MADE” or “MISSED” with real-time probability.
+🎯 Prediction Engine: Instantly returns “MADE” or “MISSED” with probability.
 
-🎯 Player-Based Season Averages: Players’ 2024–25 shooting percentages drive accuracy.
+📊 Player-Based Season Averages: Predictions weighted by individual FG%.
 
-🌐 Interactive Frontend: HTML/CSS/JS interface for team, player, and shot context selection.
+🌐 Frontend (GitHub Pages): Responsive and fully client-side.
 
-🔧 Flask API Backend: Handles shot prediction, team/player data, and model inference.
+🔧 Backend (Render): Flask API for player/team data and model inference.
 
-📂 Project Structure
-File	Description
-build_episodes.py	Prepares and trains the LightGBM model on the season_2024_25_shots.csv dataset.
-serve_api.py	Flask backend serving team/player data and prediction endpoints.
-index.html	Frontend web interface for selecting teams, players, and making predictions.
-season_2024_25_shots.csv	NBA shot dataset containing all 2024–25 player shot data.
 🖥️ How It Works
 
-Launch the Flask API using serve_api.py.
+Visit the Live Web App:
+Go to 👉 https://mja266.github.io/NBA-Shot-Predictor/
 
-The frontend (index.html) automatically loads all NBA teams via /teams.
+Select Team & Player:
+The frontend automatically fetches all NBA teams and player rosters from the live backend.
 
-When you select a team, its players populate dynamically from the backend.
+Enter Game Context:
+Choose:
 
-Input shot details (period, time remaining, shot type, and coordinates).
+Period (1–4)
 
-Press Predict — the backend evaluates the shot and returns:
+Time remaining (mm:ss)
 
-“MADE” (green) or “MISSED” (red)
+Shot type (2PT / 3PT / Free Throw)
 
-Along with the player’s probability of success.
+X/Y coordinates (court location)
+
+Click Predict:
+Instantly get:
+
+Kyrie Irving MADE (47.7% chance)
+
+
+or
+
+Jayson Tatum MISSED (35.2% chance)
+
+
+Enjoy!
+The interface and backend communicate seamlessly — no installation required.
 
 🧩 Tech Stack
+Layer	Technology
+Frontend	HTML, CSS, JavaScript
+Backend	Python (Flask, Flask-CORS)
+Machine Learning	LightGBM, scikit-learn, Pandas, NumPy
+Hosting	GitHub Pages (Frontend), Render (Backend API)
+Data	2024–25 NBA Shot Dataset (privately hosted)
+⚙️ Project Structure
+NBA-Shot-Predictor/
+│
+├── index.html              # Frontend Web UI (GitHub Pages)
+├── build_episodes.py       # Model training script
+├── serve_api.py            # Flask backend API (Render)
+├── season_2024_25_shots.csv # Training dataset (stored privately)
+├── requirements.txt        # Python dependencies for backend
+├── Dockerfile              # Render deployment file
+└── README.md               # Project documentation
 
-Python: Flask, LightGBM, Pandas, NumPy
-
-Frontend: HTML, CSS, JavaScript
-
-Data Source: 2024–25 NBA shot data (season_2024_25_shots.csv)
-
-⚙️ Setup Instructions
-1️⃣ Clone the Repository
-git clone https://github.com/<your-username>/Basketball-Shot-Predictor.git
-cd Basketball-Shot-Predictor
-
-2️⃣ Install Dependencies
-pip install flask flask-cors joblib lightgbm pandas numpy scikit-learn
-
-3️⃣ Train the Model
-python build_episodes.py
-
-
-This will generate:
-
-shots_model.pkl — Trained ML model
-
-shots_encoders.pkl — Encoders for teams, players, and shot types
-
-player_shot_averages.pkl — Computed player season averages
-
-4️⃣ Start the Flask API
-python serve_api.py
-
-
-Expected output:
-
-📂 Loading models and encoders...
-✅ Loaded 30 teams with player mappings
-🚀 Serving Basketball Play Predictor on http://127.0.0.1:5000
-
-5️⃣ Open the Frontend
-
-Open index.html directly in your browser (e.g. via Live Server in VS Code).
-
-The web app should automatically load all NBA teams and their rosters.
-
-📂 Data Access
-
-The 2024–25 NBA shot dataset used for training and predictions is hosted externally due to GitHub’s file size limits.
-You can download it directly from Dropbox using the link below:
-
-🔗 Download the 2024–25 NBA Shot Dataset (season_2024_25_shots.csv)
-
-Once downloaded, place the file in the root directory of this project (alongside build_episodes.py, serve_api.py, and index.html) before running the model training step:
-
-python build_episodes.py
+🌍 Architecture Overview
++-------------------------+
+|   GitHub Pages (UI)     |
+|  index.html + JS Logic  |
++-----------+-------------+
+            |
+            |  REST API calls (HTTPS)
+            v
++--------------------------+
+| Flask Backend (Render)   |
+| serve_api.py + Model.pkl |
+|  -> /teams               |
+|  -> /players/<team>      |
+|  -> /predict             |
++--------------------------+
 
 
-If you prefer, you can also modify build_episodes.py to automatically download the dataset by adding:
+Frontend → Backend Flow Example:
 
-DROPBOX_CSV_URL = "https://www.dropbox.com/scl/fi/2p2ym6akwvqbu0d8nb648/season_2024_25_shots.csv?rlkey=80ua85sxeijwgnu8gjmxs1ida&st=luv4qhix&dl=1"
+fetch("https://nba-shot-predictor.onrender.com/predict", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    team: "Dallas Mavericks",
+    player: "Kyrie Irving",
+    period: 4,
+    time_remaining: "2:00",
+    shot_type: "2PT Field Goal",
+    x: 25,
+    y: 25
+  })
+})
+
+
+Backend responds with:
+
+{
+  "result": "MADE",
+  "probability": 0.477
+}
 
 🧠 Prediction Logic
 
-If the selected player has recorded season stats, predictions use their 2024–25 FG%.
+If the selected player has season data, predictions blend their personal FG% with the model output.
 
-Otherwise, the trained LightGBM model provides a context-based probability.
+If not, the LightGBM model provides a context-based probability.
 
 Results appear instantly with color-coded feedback:
 
@@ -111,25 +124,79 @@ Results appear instantly with color-coded feedback:
 
 🔴 MISSED — Missed shot
 
-📊 Example Usage
+🧾 Example Usage
 
-Select Team: “Golden State Warriors”
+Scenario:
 
-Select Player: “Stephen Curry”
+Team: Golden State Warriors
 
-Select Shot Type: “3PT”
+Player: Stephen Curry
 
-Coordinates: x = 25, y = 25
+Shot Type: 3PT Field Goal
 
-Click Predict →
-Output:
+Coordinates: (25, 25)
+
+Time: 2:00 left in 4th quarter
+
+Prediction Output:
 
 Stephen Curry MADE (42.8% chance)
 
+📡 Deployment Info
+Frontend (GitHub Pages)
+
+Publicly accessible at
+https://mja266.github.io/NBA-Shot-Predictor/
+
+Backend (Render)
+
+Flask API hosted at
+https://nba-shot-predictor.onrender.com
+
+Endpoints:
+
+/teams — returns list of NBA teams
+
+/players/<team> — returns roster for given team
+
+/predict — returns prediction result and probability
+
 🏁 Notes
 
-Ensure the Flask API runs before loading the web interface.
+The web app is fully functional and requires no setup or downloads.
 
-Predictions rely on both season averages and the trained model.
+The dataset and model are pre-trained and hosted remotely for fast API inference.
 
-The project is designed for expansion — new players or seasons can be added by updating the dataset and rerunning build_episodes.py.
+If the Render backend sleeps (free plan), the first request may take ~50 seconds to wake up.
+
+After waking, performance is instantaneous.
+
+💡 Future Enhancements
+
+🧩 Add shot chart visualization (interactive court map)
+
+📈 Display team shooting analytics
+
+🔊 Add commentary/voice feedback for predictions
+
+🏗️ Expand to WNBA / EuroLeague datasets
+
+👨‍💻 Author
+
+Mohamed Abdalla
+🎓 Cornell University — B.S. Computer Science, Minor in ECE
+🔗 LinkedIn
+
+💻 GitHub
+
+🏀 Live Project Links
+Component	URL
+Frontend (GitHub Pages)	https://mja266.github.io/NBA-Shot-Predictor/
+
+Backend (Render API)	https://nba-shot-predictor.onrender.com
+✅ TL;DR
+
+Just visit:
+👉 https://mja266.github.io/NBA-Shot-Predictor/
+
+No installation. No setup. Instant NBA shot predictions.
