@@ -12,15 +12,14 @@ PLAYER_AVG_PKL = "player_shot_averages.pkl"
 DATA_CSV = "season_2024_25_shots.csv"
 
 app = Flask(__name__)
-# Allow all origins (so https://mja266.github.io can access it)
-CORS(app, resources={r"/*": {"origins": "*"}})
+CORS(app)
 
 print("📂 Loading models and encoders...")
 model = joblib.load(MODEL_PKL)
 enc = joblib.load(ENCODERS_PKL)
 player_avgs = joblib.load(PLAYER_AVG_PKL)
 
-# Load team → players mapping from CSV
+# Load dynamic team→players mapping from CSV
 if not Path(DATA_CSV).exists():
     raise FileNotFoundError(f"{DATA_CSV} not found!")
 
@@ -38,11 +37,9 @@ team_to_players = (
       .to_dict()
 )
 all_teams = sorted(team_to_players.keys())
-print(f"✅ Loaded {len(all_teams)} teams with player mappings.")
+print(f"✅ Loaded {len(all_teams)} teams with player mappings")
 
 SUPPORTED_PLAYERS = list(player_avgs.keys())
-
-# ---------------- Helper Functions ----------------
 
 def safe_encode(label, encoder, label_type=""):
     classes = encoder.classes_.tolist()
@@ -76,8 +73,6 @@ def preprocess(payload):
     row = np.array([[player_id, team_id, period, time_remaining, shot_id, x, y]], dtype=float)
     return row, None
 
-# ---------------- API Endpoints ----------------
-
 @app.route("/teams", methods=["GET"])
 def get_teams():
     """Return all teams and their players for dropdown population."""
@@ -88,7 +83,6 @@ def get_teams():
 
 @app.route("/predict", methods=["POST"])
 def predict():
-    """Hybrid model: combines player realism with spatial/contextual variability."""
     payload = request.get_json(force=True)
     player = payload.get("player_name", "").strip()
     X, err = preprocess(payload)
@@ -96,32 +90,75 @@ def predict():
         return jsonify({"ok": False, "error": err}), 400
 
     try:
-        # --- Player FG% baseline ---
-        base_fg = float(player_avgs.get(player, 0.45))  # Default league avg if missing
-
-        # --- Model contextual/spatial adjustment ---
-        model_prob = float(model.predict_proba(X)[0, 1])
-
-        # --- Weighted blend ---
-        # 70% player realism + 30% model spatial/context features
-        final_prob = 0.7 * base_fg + 0.3 * model_prob
-
-        # Determine result
-        label = "MADE" if np.random.rand() < final_prob else "MISSED"
-
-        return jsonify({
-            "ok": True,
-            "prediction_label": label,
-            "made_probability": final_prob,
-            "method": "hybrid_model",
-            "player": player
-        })
-
+        if player in player_avgs:
+            fg_pct = float(player_avgs[player])
+            prob = model.predict_proba(X)[0, 1]
+            hybrid = 0.7 * fg_pct + 0.3 * prob
+            label = "MADE" if np.random.rand() < hybrid else "MISSED"
+            return jsonify({
+                "ok": True,
+                "prediction_label": label,
+                "made_probability": hybrid,
+                "method": "hybrid_model",
+                "player": player
+            })
+        else:
+            prob = float(model.predict_proba(X)[0, 1])
+            label = "MADE" if prob >= 0.5 else "MISSED"
+            return jsonify({
+                "ok": True,
+                "prediction_label": label,
+                "made_probability": prob,
+                "method": "model_fallback",
+                "player": player
+            })
     except Exception as e:
         return jsonify({"ok": False, "error": f"Prediction error: {str(e)}"}), 500
 
-# ---------------- Server Launch ----------------
+
+# 🆕 New: Batch prediction for heatmap
+@app.route("/predict_grid", methods=["POST"])
+def predict_grid():
+    """
+    Efficiently returns probabilities for multiple (x, y) points in a single request.
+    """
+    try:
+        payload = request.get_json(force=True)
+        player = payload.get("player_name", "").strip()
+        team = payload.get("team_id", "")
+        shot_type = payload.get("shot_type", "")
+        period = int(payload.get("period", 1))
+        pctimestring = payload.get("pctimestring", "2:00")
+        points = payload.get("points", [])  # List of {"x": val, "y": val}
+
+        base_fg = float(player_avgs.get(player, 0.45))
+        team_id = safe_encode(team, enc["team"], "team")
+        shot_id = safe_encode(shot_type, enc["shot"], "shot")
+        player_id = safe_encode(player, enc["player"], "player")
+        time_remaining = to_seconds(pctimestring)
+
+        rows = []
+        for p in points:
+            x = float(p.get("x", 25.0))
+            y = float(p.get("y", 25.0))
+            rows.append([player_id, team_id, period, time_remaining, shot_id, x, y])
+
+        X = np.array(rows, dtype=float)
+        model_probs = model.predict_proba(X)[:, 1]
+
+        # Apply hybrid adjustment: 70% player realism + 30% model context
+        final_probs = 0.7 * base_fg + 0.3 * model_probs
+
+        return jsonify({
+            "ok": True,
+            "points": [{"x": float(p["x"]), "y": float(p["y"]), "prob": float(fp)} 
+                       for p, fp in zip(points, final_probs)]
+        })
+
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"Grid prediction error: {str(e)}"}), 500
+
 
 if __name__ == "__main__":
-    print("Serving 🏀 Basketball Shot Predictor on https://mja266.github.io")
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    print("Serving 🏀 Basketball Shot Predictor on http://127.0.0.1:5000")
+    app.run(host="127.0.0.1", port=5000, debug=True)
