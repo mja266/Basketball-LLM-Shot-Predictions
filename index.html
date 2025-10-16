@@ -67,7 +67,8 @@
 
   <script>
     let teams = {};
-    const backendURL = "https://nba-shot-predictor.onrender.com"; // Replace with your Render URL
+    // ✅ Update this URL after deploying the backend to Render
+    const backendURL = "https://nba-shot-predictor.onrender.com";
 
     async function loadTeams() {
       const res = await fetch(`${backendURL}/teams`);
@@ -127,7 +128,17 @@
       } else {
         const color = data.prediction_label === "MADE" ? "lime" : "red";
         const pct = (data.made_probability * 100).toFixed(1);
-        resultDiv.innerHTML = `<span style="color:${color};">${data.player} ${data.prediction_label} (${pct}% chance)</span>`;
+        const methodText =
+          data.method === "hybrid_model"
+            ? "Hybrid Prediction"
+            : data.method === "season_average"
+            ? "Season Average"
+            : "Model Prediction";
+        resultDiv.innerHTML = `
+          <span style="color:${color};">
+            ${data.player} ${data.prediction_label} (${pct}% chance)
+          </span><br/>
+          <small style="color:#aaa;">${methodText}</small>`;
       }
     }
 
