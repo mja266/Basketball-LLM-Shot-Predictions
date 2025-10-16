@@ -2,148 +2,220 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>🏀NBA Shot Predictor</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>🏀 NBA Shot Predictor</title>
   <style>
     body {
       background-color: #111;
       color: #f7c600;
       font-family: 'Segoe UI', sans-serif;
-      text-align: center;
       margin: 2rem;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
     }
+    h1 { grid-column: 1 / -1; text-align: center; }
+    .panel { background:#181818; border-radius:14px; padding:16px; }
     select, input {
-      width: 80%;
-      padding: 10px;
-      margin: 8px;
-      border-radius: 8px;
-      border: none;
-      background: #222;
-      color: #fff;
-      font-size: 1rem;
+      width: 100%;
+      padding: 10px; margin: 8px 0;
+      border-radius: 8px; border: none;
+      background: #222; color: #fff; font-size: 1rem;
     }
     button {
-      background-color: #f7c600;
-      color: #000;
-      font-weight: bold;
-      border: none;
-      border-radius: 8px;
-      padding: 10px 20px;
-      cursor: pointer;
+      background-color: #f7c600; color: #000; font-weight: 700;
+      border: none; border-radius: 8px; padding: 10px 20px; cursor: pointer;
     }
-    button:hover {
-      background-color: #ffdb4d;
-    }
-    .result {
-      margin-top: 20px;
-      font-size: 1.2rem;
-    }
+    button:hover { background-color: #ffdb4d; }
+    .result { margin-top: 10px; font-size: 1.05rem; }
+    .legend { display:flex; align-items:center; gap:10px; margin-top:10px; color:#ddd; font-size:.9rem; }
+    .bar { height: 10px; flex:1; background: linear-gradient(90deg, #b21c1c, #e0e000, #1ec41e); border-radius:6px; }
+    canvas { width: 100%; height: auto; background:#0e0e0e; border-radius:14px; cursor: crosshair; }
+    .note { color:#aaa; font-size:.85rem; margin-top:8px; }
   </style>
 </head>
 <body>
-  <h1>🏀 Basketball Play Predictor</h1>
-  <div>
-    <label>Team</label><br />
-    <select id="team"></select><br />
-    <label>Player</label><br />
-    <select id="player"></select><br />
-    <label>Period (1–4)</label><br />
-    <input id="period" type="number" min="1" max="4" value="4"/><br />
-    <label>Time remaining (mm:ss)</label><br />
-    <input id="time" type="text" value="2:00"/><br />
-    <label>Shot type</label><br />
+  <h1>🏀 NBA Shot Predictor</h1>
+
+  <div class="panel">
+    <label>Team</label>
+    <select id="team"></select>
+    <label>Player</label>
+    <select id="player"></select>
+    <label>Period (1–4)</label>
+    <input id="period" type="number" min="1" max="4" value="4"/>
+    <label>Time remaining (mm:ss)</label>
+    <input id="time" type="text" value="2:00"/>
+    <label>Shot type</label>
     <select id="shot">
       <option>2PT Field Goal</option>
       <option>3PT</option>
       <option>MID</option>
-    </select><br />
-    <label>X coordinate (0–50)</label><br />
-    <input id="x" type="number" value="25"/><br />
-    <label>Y coordinate (0–50)</label><br />
-    <input id="y" type="number" value="25"/><br />
-    <button onclick="predict()">Predict</button>
+    </select>
+    <label>X coordinate (0–50)</label>
+    <input id="x" type="number" value="25" step="1"/>
+    <label>Y coordinate (0–50)</label>
+    <input id="y" type="number" value="25" step="1"/>
+    <button id="predictBtn">Predict</button>
     <div id="result" class="result"></div>
+    <div class="legend">
+      <span>Lower</span><div class="bar"></div><span>Higher</span>
+    </div>
+    <div class="note">Click on the court to set shot location. Heatmap updates automatically.</div>
+  </div>
+
+  <div class="panel">
+    <canvas id="court" width="600" height="600"></canvas>
   </div>
 
   <script>
+    const backendURL = "https://nba-shot-predictor.onrender.com"; // Replace if needed
+    const canvas = document.getElementById('court');
+    const ctx = canvas.getContext('2d');
+    const GRID_STEP = 5;
     let teams = {};
-    // ✅ Update this URL after deploying the backend to Render
-    const backendURL = "https://nba-shot-predictor.onrender.com";
+    const els = {
+      team: document.getElementById('team'),
+      player: document.getElementById('player'),
+      period: document.getElementById('period'),
+      time: document.getElementById('time'),
+      shot: document.getElementById('shot'),
+      x: document.getElementById('x'),
+      y: document.getElementById('y'),
+      result: document.getElementById('result'),
+      predictBtn: document.getElementById('predictBtn')
+    };
 
-    async function loadTeams() {
-      const res = await fetch(`${backendURL}/teams`);
-      const data = await res.json();
-      if (!data.ok) {
-        document.getElementById("result").innerText = "⚠️ Failed to load teams.";
-        return;
-      }
+    const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+    const debounce = (fn, ms=500) => { let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args), ms); }; };
 
-      teams = data.teams;
-      const teamSel = document.getElementById("team");
-      const playerSel = document.getElementById("player");
+    function probToColor(p){ const hue = clamp(p,0,1)*120; return `hsl(${hue},85%,45%)`; }
+    function toPX(val){ return (val/50)*canvas.width; }
 
-      Object.keys(teams).sort().forEach(t => {
-        const opt = document.createElement("option");
-        opt.value = t;
-        opt.textContent = t;
-        teamSel.appendChild(opt);
-      });
+    function drawCourtBase(){
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      ctx.fillStyle="#0e0e0e"; ctx.fillRect(0,0,canvas.width,canvas.height);
+      ctx.strokeStyle="#444"; ctx.lineWidth=2;
+      ctx.strokeRect(toPX(0),toPX(0),toPX(50),toPX(50));
+      ctx.beginPath(); ctx.arc(toPX(25),toPX(5),6,0,Math.PI*2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(toPX(25),toPX(19),toPX(6),0,Math.PI*2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(toPX(0),toPX(7)); ctx.lineTo(toPX(0),toPX(0)); ctx.lineTo(toPX(50),toPX(0)); ctx.lineTo(toPX(50),toPX(7)); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(toPX(0),toPX(50)); ctx.lineTo(toPX(50),toPX(50)); ctx.stroke();
 
-      teamSel.addEventListener("change", () => {
-        const selected = teamSel.value;
-        playerSel.innerHTML = "";
-        teams[selected].forEach(p => {
-          const opt = document.createElement("option");
-          opt.value = p;
-          opt.textContent = p;
-          playerSel.appendChild(opt);
-        });
-      });
-
-      // Trigger default load for first team
-      teamSel.dispatchEvent(new Event("change"));
+      const grad = ctx.createLinearGradient(20,20,120,20);
+      grad.addColorStop(0,"#b21c1c"); grad.addColorStop(0.5,"#e0e000"); grad.addColorStop(1,"#1ec41e");
+      ctx.fillStyle=grad; ctx.fillRect(20,20,100,10);
+      ctx.fillStyle="#ccc"; ctx.font="12px Segoe UI";
+      ctx.fillText("Low", 20, 45); ctx.fillText("High", 95, 45);
     }
 
-    async function predict() {
-      const payload = {
-        team_id: document.getElementById("team").value,
-        player_name: document.getElementById("player").value,
-        period: document.getElementById("period").value,
-        pctimestring: document.getElementById("time").value,
-        shot_type: document.getElementById("shot").value,
-        x: document.getElementById("x").value,
-        y: document.getElementById("y").value
+    function drawMarker(x,y,color="#00e676"){
+      ctx.fillStyle=color; ctx.strokeStyle="#000"; ctx.lineWidth=2;
+      ctx.beginPath();
+      ctx.arc(toPX(x),toPX(50-y),6,0,Math.PI*2);
+      ctx.fill(); ctx.stroke();
+    }
+
+    async function fetchTeams(){ const r=await fetch(`${backendURL}/teams`); return r.json(); }
+
+    async function renderHeatmap(){
+      drawCourtBase();
+      const xs=[]; for(let x=0;x<=50;x+=GRID_STEP) xs.push(x);
+      const ys=[]; for(let y=0;y<=50;y+=GRID_STEP) ys.push(y);
+      const points=[]; for(const x of xs) for(const y of ys) points.push({x,y});
+
+      const payload={
+        team_id: els.team.value,
+        player_name: els.player.value,
+        period: els.period.value,
+        pctimestring: els.time.value,
+        shot_type: els.shot.value,
+        points
       };
 
-      const res = await fetch(`${backendURL}/predict`, {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify(payload)
-      });
+      try{
+        const res=await fetch(`${backendURL}/predict_grid`,{
+          method:"POST",headers:{"Content-Type":"application/json"},
+          body:JSON.stringify(payload)
+        });
+        const data=await res.json();
+        if(!data.ok) throw new Error(data.error);
 
-      const data = await res.json();
-      const resultDiv = document.getElementById("result");
-      if (!data.ok) {
-        resultDiv.innerHTML = `<span style="color:red;">❌ ${data.error}</span>`;
-      } else {
-        const color = data.prediction_label === "MADE" ? "lime" : "red";
-        const pct = (data.made_probability * 100).toFixed(1);
-        const methodText =
-          data.method === "hybrid_model"
-            ? "Hybrid Prediction"
-            : data.method === "season_average"
-            ? "Season Average"
-            : "Model Prediction";
-        resultDiv.innerHTML = `
-          <span style="color:${color};">
-            ${data.player} ${data.prediction_label} (${pct}% chance)
-          </span><br/>
-          <small style="color:#aaa;">${methodText}</small>`;
-      }
+        const cellW=toPX(GRID_STEP), cellH=toPX(GRID_STEP);
+        for(const r of data.points){
+          ctx.fillStyle=probToColor(r.prob);
+          const px=toPX(r.x), py=toPX(50-r.y)-cellH;
+          ctx.fillRect(px,py,cellW,cellH);
+        }
+      }catch(e){console.error("Heatmap render error:",e);}
+      drawCourtBase();
+      const cx=clamp(Number(els.x.value)||25,0,50);
+      const cy=clamp(Number(els.y.value)||25,0,50);
+      drawMarker(cx,cy);
     }
 
-    loadTeams();
+    async function loadTeams(){
+      const d=await fetchTeams();
+      if(!d.ok){els.result.innerText="⚠️ Failed to load teams.";return;}
+      teams=d.teams; els.team.innerHTML="";
+      Object.keys(teams).sort().forEach(t=>{
+        const opt=document.createElement("option");
+        opt.value=t; opt.textContent=t;
+        els.team.appendChild(opt);
+      });
+      const fillPlayers=()=>{
+        const sel=els.team.value;
+        els.player.innerHTML="";
+        (teams[sel]||[]).forEach(p=>{
+          const o=document.createElement("option");
+          o.value=p; o.textContent=p;
+          els.player.appendChild(o);
+        });
+      };
+      els.team.addEventListener("change",()=>{fillPlayers();debouncedHeatmap();});
+      fillPlayers(); await renderHeatmap();
+    }
+
+    async function predict(){
+      const payload={
+        team_id:els.team.value,
+        player_name:els.player.value,
+        period:els.period.value,
+        pctimestring:els.time.value,
+        shot_type:els.shot.value,
+        x:els.x.value,y:els.y.value
+      };
+      const r=await fetch(`${backendURL}/predict`,{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify(payload)
+      });
+      const d=await r.json();
+      if(!d.ok){els.result.innerHTML=`<span style="color:red;">❌ ${d.error}</span>`;return;}
+      const color=d.prediction_label==="MADE"?"lime":"red";
+      const pct=(d.made_probability*100).toFixed(1);
+      const methodText=d.method==="hybrid_model"?"Hybrid Prediction":d.method==="season_average"?"Season Average":"Model Prediction";
+      els.result.innerHTML=`<span style="color:${color};">${d.player} ${d.prediction_label} (${pct}% chance)</span><br/><small style="color:#aaa;">${methodText}</small>`;
+      await renderHeatmap();
+    }
+
+    const debouncedHeatmap=debounce(renderHeatmap,600);
+    ["x","y","shot","time","period"].forEach(id=>{
+      els[id].addEventListener("input",debouncedHeatmap);
+      els[id].addEventListener("change",debouncedHeatmap);
+    });
+    els.predictBtn.addEventListener("click",predict);
+
+    // 🆕 Click-to-set shot location
+    canvas.addEventListener("click", e=>{
+      const rect=canvas.getBoundingClientRect();
+      const x=((e.clientX-rect.left)/canvas.width)*50;
+      const y=50-((e.clientY-rect.top)/canvas.height)*50;
+      els.x.value=x.toFixed(1);
+      els.y.value=y.toFixed(1);
+      predict();
+    });
+
+    drawCourtBase(); loadTeams();
   </script>
 </body>
 </html>
-
