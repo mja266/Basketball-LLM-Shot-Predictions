@@ -61,18 +61,17 @@
     <div class="legend">
       <span>Lower</span><div class="bar"></div><span>Higher</span>
     </div>
-    <div class="note">Click on the court to set shot location. Heatmap updates automatically.</div>
+    <div class="note">Click on the court to set shot location. Court shows red (missed) or green (made).</div>
   </div>
 
   <div class="panel">
-    <canvas id="court" width="600" height="600"></canvas>
+    <canvas id="court" width="600" height="500"></canvas>
   </div>
 
   <script>
-    const backendURL = "https://nba-shot-predictor.onrender.com"; // Replace if needed
+    const backendURL = "https://nba-shot-predictor.onrender.com";
     const canvas = document.getElementById('court');
     const ctx = canvas.getContext('2d');
-    const GRID_STEP = 5;
     let teams = {};
     const els = {
       team: document.getElementById('team'),
@@ -87,72 +86,86 @@
     };
 
     const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-    const debounce = (fn, ms=500) => { let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args), ms); }; };
+    const toPX = v => (v/50)*canvas.width;
 
-    function probToColor(p){ const hue = clamp(p,0,1)*120; return `hsl(${hue},85%,45%)`; }
-    function toPX(val){ return (val/50)*canvas.width; }
-
-    function drawCourtBase(){
+    // 🏀 Draw realistic basketball half-court
+    function drawCourtBase() {
       ctx.clearRect(0,0,canvas.width,canvas.height);
-      ctx.fillStyle="#0e0e0e"; ctx.fillRect(0,0,canvas.width,canvas.height);
-      ctx.strokeStyle="#444"; ctx.lineWidth=2;
-      ctx.strokeRect(toPX(0),toPX(0),toPX(50),toPX(50));
-      ctx.beginPath(); ctx.arc(toPX(25),toPX(5),6,0,Math.PI*2); ctx.stroke();
-      ctx.beginPath(); ctx.arc(toPX(25),toPX(19),toPX(6),0,Math.PI*2); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(toPX(0),toPX(7)); ctx.lineTo(toPX(0),toPX(0)); ctx.lineTo(toPX(50),toPX(0)); ctx.lineTo(toPX(50),toPX(7)); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(toPX(0),toPX(50)); ctx.lineTo(toPX(50),toPX(50)); ctx.stroke();
+      ctx.fillStyle="#0e0e0e";
+      ctx.fillRect(0,0,canvas.width,canvas.height);
+      ctx.strokeStyle="#444";
+      ctx.lineWidth=2;
 
+      // Baseline
+      ctx.beginPath();
+      ctx.moveTo(toPX(0), toPX(0));
+      ctx.lineTo(toPX(50), toPX(0));
+      ctx.stroke();
+
+      // Sidelines
+      ctx.beginPath();
+      ctx.moveTo(toPX(0), toPX(0));
+      ctx.lineTo(toPX(0), toPX(47));
+      ctx.moveTo(toPX(50), toPX(0));
+      ctx.lineTo(toPX(50), toPX(47));
+      ctx.stroke();
+
+      // Free throw lane ("paint")
+      ctx.beginPath();
+      ctx.rect(toPX(17), toPX(0), toPX(16), toPX(19));
+      ctx.stroke();
+
+      // Free throw circle
+      ctx.beginPath();
+      ctx.arc(toPX(25), toPX(19), toPX(6), 0, Math.PI, true);
+      ctx.stroke();
+
+      // 3-point arc
+      ctx.beginPath();
+      ctx.arc(toPX(25), toPX(5.25), toPX(23.75), Math.PI*0.11, Math.PI*0.89, false);
+      ctx.stroke();
+
+      // Rim
+      ctx.beginPath();
+      ctx.arc(toPX(25), toPX(4.5), toPX(1.25), 0, Math.PI*2);
+      ctx.stroke();
+
+      // Backboard
+      ctx.beginPath();
+      ctx.moveTo(toPX(22), toPX(3.5));
+      ctx.lineTo(toPX(28), toPX(3.5));
+      ctx.stroke();
+
+      // Center court (optional)
+      ctx.beginPath();
+      ctx.arc(toPX(25), toPX(47), toPX(3), 0, Math.PI*2);
+      ctx.stroke();
+
+      // Gradient legend (Low/High)
       const grad = ctx.createLinearGradient(20,20,120,20);
-      grad.addColorStop(0,"#b21c1c"); grad.addColorStop(0.5,"#e0e000"); grad.addColorStop(1,"#1ec41e");
-      ctx.fillStyle=grad; ctx.fillRect(20,20,100,10);
-      ctx.fillStyle="#ccc"; ctx.font="12px Segoe UI";
-      ctx.fillText("Low", 20, 45); ctx.fillText("High", 95, 45);
+      grad.addColorStop(0,"#b21c1c");
+      grad.addColorStop(0.5,"#e0e000");
+      grad.addColorStop(1,"#1ec41e");
+      ctx.fillStyle=grad;
+      ctx.fillRect(20,20,100,10);
+      ctx.fillStyle="#ccc";
+      ctx.font="12px Segoe UI";
+      ctx.fillText("Low",20,45);
+      ctx.fillText("High",95,45);
     }
 
-    function drawMarker(x,y,color="#00e676"){
-      ctx.fillStyle=color; ctx.strokeStyle="#000"; ctx.lineWidth=2;
+    function drawShotMarker(x,y, made) {
+      const color = made ? "#00e676" : "#ff3b3b";
+      ctx.fillStyle=color;
+      ctx.strokeStyle="#000";
+      ctx.lineWidth=2;
       ctx.beginPath();
-      ctx.arc(toPX(x),toPX(50-y),6,0,Math.PI*2);
-      ctx.fill(); ctx.stroke();
+      ctx.arc(toPX(x), canvas.height - toPX(y), 6, 0, Math.PI*2);
+      ctx.fill();
+      ctx.stroke();
     }
 
     async function fetchTeams(){ const r=await fetch(`${backendURL}/teams`); return r.json(); }
-
-    async function renderHeatmap(){
-      drawCourtBase();
-      const xs=[]; for(let x=0;x<=50;x+=GRID_STEP) xs.push(x);
-      const ys=[]; for(let y=0;y<=50;y+=GRID_STEP) ys.push(y);
-      const points=[]; for(const x of xs) for(const y of ys) points.push({x,y});
-
-      const payload={
-        team_id: els.team.value,
-        player_name: els.player.value,
-        period: els.period.value,
-        pctimestring: els.time.value,
-        shot_type: els.shot.value,
-        points
-      };
-
-      try{
-        const res=await fetch(`${backendURL}/predict_grid`,{
-          method:"POST",headers:{"Content-Type":"application/json"},
-          body:JSON.stringify(payload)
-        });
-        const data=await res.json();
-        if(!data.ok) throw new Error(data.error);
-
-        const cellW=toPX(GRID_STEP), cellH=toPX(GRID_STEP);
-        for(const r of data.points){
-          ctx.fillStyle=probToColor(r.prob);
-          const px=toPX(r.x), py=toPX(50-r.y)-cellH;
-          ctx.fillRect(px,py,cellW,cellH);
-        }
-      }catch(e){console.error("Heatmap render error:",e);}
-      drawCourtBase();
-      const cx=clamp(Number(els.x.value)||25,0,50);
-      const cy=clamp(Number(els.y.value)||25,0,50);
-      drawMarker(cx,cy);
-    }
 
     async function loadTeams(){
       const d=await fetchTeams();
@@ -172,50 +185,49 @@
           els.player.appendChild(o);
         });
       };
-      els.team.addEventListener("change",()=>{fillPlayers();debouncedHeatmap();});
-      fillPlayers(); await renderHeatmap();
+      els.team.addEventListener("change",()=>{fillPlayers();});
+      fillPlayers();
     }
 
-    async function predict(){
-      const payload={
-        team_id:els.team.value,
-        player_name:els.player.value,
-        period:els.period.value,
-        pctimestring:els.time.value,
-        shot_type:els.shot.value,
-        x:els.x.value,y:els.y.value
+    async function predict() {
+      const payload = {
+        team_id: els.team.value,
+        player_name: els.player.value,
+        period: els.period.value,
+        pctimestring: els.time.value,
+        shot_type: els.shot.value,
+        x: els.x.value,
+        y: els.y.value
       };
-      const r=await fetch(`${backendURL}/predict`,{
-        method:"POST",headers:{"Content-Type":"application/json"},
+
+      const r = await fetch(`${backendURL}/predict`, {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
         body:JSON.stringify(payload)
       });
-      const d=await r.json();
+      const d = await r.json();
       if(!d.ok){els.result.innerHTML=`<span style="color:red;">❌ ${d.error}</span>`;return;}
       const color=d.prediction_label==="MADE"?"lime":"red";
       const pct=(d.made_probability*100).toFixed(1);
-      const methodText=d.method==="hybrid_model"?"Hybrid Prediction":d.method==="season_average"?"Season Average":"Model Prediction";
-      els.result.innerHTML=`<span style="color:${color};">${d.player} ${d.prediction_label} (${pct}% chance)</span><br/><small style="color:#aaa;">${methodText}</small>`;
-      await renderHeatmap();
+      els.result.innerHTML=`<span style="color:${color};">${d.player} ${d.prediction_label} (${pct}% chance)</span>`;
+      drawCourtBase();
+      drawShotMarker(payload.x, payload.y, d.prediction_label==="MADE");
     }
 
-    const debouncedHeatmap=debounce(renderHeatmap,600);
-    ["x","y","shot","time","period"].forEach(id=>{
-      els[id].addEventListener("input",debouncedHeatmap);
-      els[id].addEventListener("change",debouncedHeatmap);
-    });
-    els.predictBtn.addEventListener("click",predict);
+    els.predictBtn.addEventListener("click", predict);
 
-    // 🆕 Click-to-set shot location
-    canvas.addEventListener("click", e=>{
-      const rect=canvas.getBoundingClientRect();
-      const x=((e.clientX-rect.left)/canvas.width)*50;
-      const y=50-((e.clientY-rect.top)/canvas.height)*50;
-      els.x.value=x.toFixed(1);
-      els.y.value=y.toFixed(1);
-      predict();
+    // 🆕 Click-to-shoot feature
+    canvas.addEventListener("click", async e=>{
+      const rect = canvas.getBoundingClientRect();
+      const x = ((e.clientX - rect.left) / canvas.width) * 50;
+      const y = ((canvas.height - (e.clientY - rect.top)) / canvas.height) * 50;
+      els.x.value = x.toFixed(1);
+      els.y.value = y.toFixed(1);
+      await predict();
     });
 
-    drawCourtBase(); loadTeams();
+    drawCourtBase();
+    loadTeams();
   </script>
 </body>
 </html>
